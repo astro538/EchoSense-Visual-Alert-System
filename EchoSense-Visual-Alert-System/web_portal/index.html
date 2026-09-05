@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuraSound IoT | Assistive Environmental Sound Intelligence for Deaf & Hard of Hearing</title>
+  <meta name="description" content="Production IoT Acoustic Monitoring & Assistive Visual Alert System for Deaf and Hard of Hearing individuals. Real-time Firebase streaming, ESP32 4-LED mirroring, Visitor Speech Assistant, and Emergency SOS.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- SILENT FULLSCREEN VISUAL STROBE ALERT (Accessible Peripheral Flashing) -->
+  <div id="visualStrobeAlert" class="visual-strobe-overlay hidden" onclick="dismissStrobe()">
+    <div class="strobe-inner">
+      <div class="strobe-icon-wrapper" id="strobeIconContainer">
+        <i id="strobeIcon" class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h1 id="strobeTitle">HIGH SOUND DETECTED</h1>
+      <p id="strobeSubtitle">Intense acoustic vibration identified in the room.</p>
+      <div class="strobe-badge" id="strobeBadge">CRITICAL ALERT</div>
+      <button id="dismissStrobeBtn" class="strobe-dismiss-btn" onclick="dismissStrobe()">
+        <i class="fa-solid fa-check"></i> Acknowledge & Dismiss Visual Flash
+      </button>
+      <span class="strobe-tap-hint"><i class="fa-solid fa-hand-pointer"></i> Tap anywhere on screen to dismiss</span>
+    </div>
+  </div>
+
+  <div class="app-layout">
+    <!-- TOP NAVIGATION HEADER -->
+      <!-- Top Header Row -->
+      <div class="top-nav-main">
+        <div class="brand">
+          <div class="brand-logo">
+            <i class="fa-solid fa-wave-square"></i>
+            <span class="logo-pulse"></span>
+          </div>
+          <div class="brand-info">
+            <h1>AuraSound <span>IoT</span></h1>
+            <p>Assistive Acoustic Intelligence for the Deaf & Hard of Hearing</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Audio Input Source Switch: INMP441 (ESP32) vs Laptop Mic -->
+          <div class="mic-source-selector" id="micSourceSelector">
+            <button class="mic-pill-btn active" id="btnSourceEsp32" onclick="setAudioSource('esp32')" title="Use Room INMP441 Digital Microphone via ESP32">
+              <i class="fa-solid fa-microchip"></i> <span>INMP441 (ESP32)</span>
+            </button>
+            <button class="mic-pill-btn" id="btnSourceLaptop" onclick="setAudioSource('laptop')" title="Capture Room Sound Directly via Laptop Built-in Microphone">
+              <i class="fa-solid fa-laptop"></i> <span>Laptop Mic</span>
+            </button>
+          </div>
+
+          <!-- WebApp TTS Voice Alert Toggle -->
+          <button class="status-pill toggle-pill active" id="btnVoiceAlertToggle" onclick="toggleTtsVoiceAlerts()" title="Toggle WebApp Audible Voice Warnings on Detection">
+            <i class="fa-solid fa-volume-high" id="voiceToggleIcon"></i>
+            <span id="voiceToggleText">Voice Alert: ON</span>
+          </button>
+
+          <!-- Hardware ESP32 Connection Pill -->
+          <div class="status-pill" id="deviceStatusPill" title="Status of ESP32 Hardware Node">
+            <span class="status-dot connecting" id="espStatusDot"></span>
+            <span id="deviceStatusText">Connecting RTDB...</span>
+          </div>
+
+          <!-- Firebase Stream Pill -->
+          <div class="status-pill firebase-pill" id="firebaseStatusPill" title="Firebase Realtime Database Live Stream">
+            <span class="status-dot online"></span>
+            <span id="firebaseStatusText">Firebase RTDB: Live</span>
+          </div>
+
+          <!-- Tiered Sensory Settings Modal Button -->
+          <button id="openSensoryBtn" class="btn-nav-action" onclick="toggleSensoryModal()" title="Sensory Matrix & Alert Preferences">
+            <i class="fa-solid fa-sliders"></i> <span>Sensory Matrix</span>
+          </button>
+
+          <!-- Configuration Drawer Button -->
+          <button id="openConfigBtn" class="btn-icon" onclick="toggleConfigDrawer()" title="Firebase Project Settings">
+            <i class="fa-solid fa-gear"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Compact Integrated Navigation Tabs (Zero Disconnected Gap) -->
+      <nav class="portal-tabs">
+        <button class="tab-btn active" onclick="switchPortalTab('dashboard')" id="tab-btn-dashboard">
+          <i class="fa-solid fa-gauge-high"></i> Acoustic Monitor
+        </button>
+        <button class="tab-btn" onclick="switchPortalTab('visitor')" id="tab-btn-visitor">
+          <i class="fa-solid fa-comments"></i> Doorstep Assistant (STT / TTS)
+        </button>
+        <button class="tab-btn" onclick="switchPortalTab('contacts')" id="tab-btn-contacts">
+          <i class="fa-solid fa-address-book"></i> Emergency Contacts
+        </button>
+        <button class="tab-btn" onclick="switchPortalTab('history')" id="tab-btn-history">
+          <i class="fa-solid fa-clock-rotate-left"></i> Sound Event Log
+        </button>
+      </nav>
+    </header>
+
+    <!-- AUTOMATIC EMERGENCY WHATSAPP DISPATCH HUD / BANNER -->
+    <div id="emergencyDispatchToast" class="emergency-toast-hud hidden">
+      <div class="toast-left">
+        <div class="toast-icon-pulse"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="toast-info">
+          <strong>🚨 CRITICAL SOUND DETECTED & AUTOMATIC WHATSAPP ALERT DISPATCHED</strong>
+          <p id="dispatchToastSummary">Emergency message with last 5 acoustic logs sent to saved contacts. Room buzzer & LEDs active.</p>
+        </div>
+      </div>
+      <div class="toast-actions" id="toastContactButtons"></div>
+      <button class="toast-dismiss" onclick="dismissEmergencyToast()" title="Dismiss Alert"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- MAIN PORTAL CONTENT -->
+    <main class="dashboard-content">
+
+      <!-- ================================================================= -->
+      <!-- TAB 1: DASHBOARD & ACOUSTIC MONITOR -->
+      <!-- ================================================================= -->
+      <div id="tab-content-dashboard" class="tab-view active">
+        <div class="dashboard-grid">
+          
+          <!-- LEFT COLUMN: PRIMARY SOUND MONITORING & HERO ALERT -->
+          <section class="col-primary">
+            
+            <!-- HERO SOUND CLASSIFICATION CARD -->
+            <div class="hero-card glass-panel" id="heroAlertCard">
+              <div class="card-glow" id="heroCardGlow"></div>
+              <div class="hero-top">
+                <span class="badge-accent normal" id="alertSeverityBadge">
+                  <i class="fa-solid fa-shield-halved"></i> AMBIENT MONITORING
+                </span>
+                <span class="timestamp-tag" id="lastDetectionTime">Connecting to Firebase...</span>
+              </div>
+
+              <div class="hero-body">
+                <div class="hero-icon-box" id="heroIconBox">
+                  <span id="heroSoundEmoji">🍃</span>
+                </div>
+                <div class="hero-details">
+                  <span class="hero-sub">Current Room Sound Status</span>
+                  <h2 id="heroSoundTitle">Room Quiet & Normal</h2>
+                  <p id="heroSoundDescription">The microphone is monitoring room acoustics. Sounds like loud voices, dog barks, or cracks will trigger instant visual notifications.</p>
+                  
+                  <!-- Immediate Accessible Visual Action Cue -->
+                  <div class="action-cue" id="actionCueBox">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span id="heroActionCue">No abnormal sound detected. Room acoustics are tranquil.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Real-time Classification Confidence Bar -->
+              <div class="confidence-container">
+                <div class="conf-labels">
+                  <span>Recognition Confidence</span>
+                  <strong id="confidenceVal">98%</strong>
+                </div>
+                <div class="conf-progress-track">
+                  <div class="conf-progress-fill" id="confidenceBar" style="width: 98%;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- LIVE DECIBEL GAUGE & 4-LED HARDWARE MIRROR -->
+            <div class="metrics-row">
+              
+              <!-- Circular Decibel VU Meter -->
+              <div class="metric-card glass-panel decibel-gauge-card">
+                <div class="card-header-compact">
+                  <h3><i class="fa-solid fa-microphone-lines"></i> Room Decibel SPL</h3>
+                  <div class="card-header-badges">
+                    <span class="chip-source" id="activeMicSourceBadge"><i class="fa-solid fa-microchip"></i> INMP441</span>
+                    <span class="chip-status" id="dbStatusChip">Normal</span>
+                  </div>
+                </div>
+                <div class="gauge-wrapper">
+                  <svg class="gauge-svg" viewBox="0 0 200 200">
+                    <circle class="gauge-bg" cx="100" cy="100" r="82"></circle>
+                    <circle class="gauge-fill" id="gaugeCircleFill" cx="100" cy="100" r="82"></circle>
+                  </svg>
+                  <div class="gauge-readout">
+                    <span class="gauge-number" id="decibelVal">38.0</span>
+                    <span class="gauge-unit">dB SPL</span>
+                    <span class="gauge-context" id="decibelContext">Ambient Quiet</span>
+                  </div>
+                </div>
+                <div class="gauge-scale">
+                  <span>30 dB</span>
+                  <span>60 dB</span>
+                  <span>90 dB+</span>
+                </div>
+
+                <!-- Live Acoustic Waveform Oscilloscope -->
+                <div class="oscilloscope-container">
+                  <div class="osc-header">
+                    <span><i class="fa-solid fa-chart-simple"></i> Real-Time Acoustic Waveform</span>
+                    <span class="live-tag">LIVE FFT</span>
+                  </div>
+                  <canvas id="liveOscilloscope" width="280" height="40"></canvas>
+                </div>
+              </div>
+
+              <!-- Hardware 4-LED Sound Level Bar (Common Cathode Mirror) -->
+              <div class="metric-card glass-panel led-mirror-card">
+                <div class="card-header-compact">
+                  <h3><i class="fa-solid fa-lightbulb"></i> Hardware 4-LED Sound Bar</h3>
+                  <span class="chip-status" id="ledStatusChip">L0 • Quiet</span>
+                </div>
+                <p class="section-hint">Mirrors ESP32 Pins GPIO 12 (L1), 14 (L2), 27 (L3), 26 (L4) with Common GND:</p>
+
+                <div class="led-bar-visual">
+                  <div class="led-unit" id="virtualLed1">
+                    <div class="led-bulb bulb-green"></div>
+                    <span class="led-pin">L1 (GPIO 12)</span>
+                    <span class="led-desc">&gt; 42 dB Ambient</span>
+                  </div>
+
+                  <div class="led-unit" id="virtualLed2">
+                    <div class="led-bulb bulb-yellow"></div>
+                    <span class="led-pin">L2 (GPIO 14)</span>
+                    <span class="led-desc">&gt; 55 dB Speech</span>
+                  </div>
+
+                  <div class="led-unit" id="virtualLed3">
+                    <div class="led-bulb bulb-orange"></div>
+                    <span class="led-pin">L3 (GPIO 27)</span>
+                    <span class="led-desc">&gt; 68 dB Voice</span>
+                  </div>
+
+                  <div class="led-unit" id="virtualLed4">
+                    <div class="led-bulb bulb-red"></div>
+                    <span class="led-pin">L4 (GPIO 26)</span>
+                    <span class="led-desc">&gt; 80 dB Peak</span>
+                  </div>
+                </div>
+
+                <div class="led-summary-bar">
+                  <span>Current Active Level:</span>
+                  <strong id="activeLevelTxt">Level 0 (All LEDs OFF)</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- ADJUSTABLE CRITICAL / DANGER AUDIO LIMIT SLIDER -->
+            <div class="glass-panel threshold-control-card">
+              <div class="threshold-header">
+                <div class="threshold-title">
+                  <i class="fa-solid fa-sliders color-red"></i>
+                  <div>
+                    <h3>Critical Danger Audio Trigger Limit</h3>
+                    <p>Adjust the threshold in dB that automatically dispatches WhatsApp to saved contacts, sounds buzzer & flashes LEDs</p>
+                  </div>
+                </div>
+                <span class="threshold-chip" id="thresholdDisplayChip">82 dB • Default</span>
+              </div>
+
+              <div class="slider-container">
+                <div class="slider-scale-labels">
+                  <span>Sensitive (60 dB)</span>
+                  <span>Conversation (70 dB)</span>
+                  <span>Shouting (80 dB)</span>
+                  <span>Extreme Peak (95 dB)</span>
+                </div>
+                <input type="range" id="criticalDbSlider" min="60" max="95" step="1" value="82" class="styled-range-slider" oninput="onCriticalThresholdChange(this.value)">
+                <div class="slider-status-row">
+                  <span class="slider-hint"><i class="fa-brands fa-whatsapp color-whatsapp"></i> Sounds exceeding this limit automatically trigger WhatsApp alert with last 5 logs + room buzzer + TTS.</span>
+                  <div class="slider-val-badge">
+                    <span>Active Trigger:</span>
+                    <strong id="sliderValueText">82 dB SPL</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          <!-- RIGHT COLUMN: EMERGENCY SOS & QUICK ACTIONS -->
+          <section class="col-secondary">
+            
+            <!-- EMERGENCY SOS BUZZER CONTROLLER -->
+            <div class="sos-card glass-panel">
+              <div class="sos-glow"></div>
+              <div class="sos-header">
+                <div class="sos-title-wrap">
+                  <i class="fa-solid fa-bell-concierge"></i>
+                  <div>
+                    <h3>Room SOS & Buzzer Controller</h3>
+                    <p>Trigger physical buzzer on ESP32 GPIO 18</p>
+                  </div>
+                </div>
+                <span class="buzzer-state-badge idle" id="buzzerStateBadge">BUZZER IDLE</span>
+              </div>
+
+              <p class="sos-desc">Need assistance from hearing family or roommates? Press the SOS button to sound an audible alert pattern on the room's physical ESP32 buzzer.</p>
+
+              <!-- SOS Panic Button -->
+              <button id="triggerSosBtn" class="btn-sos-main" onclick="triggerEmergencySos()">
+                <div class="btn-sos-content">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span id="sosBtnText">TRIGGER EMERGENCY SOS</span>
+                  <small id="sosBtnSub">Sounds room buzzer for 7s</small>
+                </div>
+              </button>
+
+              <!-- Silence Button -->
+              <button id="silenceSosBtn" class="btn-silence hidden" onclick="silenceEmergencyBuzzer()">
+                <i class="fa-solid fa-volume-xmark"></i> Silence Room Buzzer Immediately
+              </button>
+
+              <div class="sos-features-row">
+                <div class="sos-feature-pill">
+                  <i class="fa-solid fa-clock"></i> 7s Safety Auto-Cutoff
+                </div>
+                <div class="sos-feature-pill">
+                  <i class="fa-solid fa-shield-check"></i> Firebase Bidirectional
+                </div>
+              </div>
+            </div>
+
+            <!-- RECENT REALTIME EVENT FEED PREVIEW -->
+            <div class="glass-panel recent-events-panel">
+              <div class="card-header-compact">
+                <h3><i class="fa-solid fa-bolt"></i> Live Sound Feed</h3>
+                <button class="link-btn" onclick="switchPortalTab('history')">View All</button>
+              </div>
+              <div class="mini-event-feed" id="miniEventFeed">
+                <div class="empty-feed">Listening for room acoustic events...</div>
+              </div>
+            </div>
+
+            <!-- SYSTEM HARDWARE STATUS SUMMARY -->
+            <div class="glass-panel system-summary-panel">
+              <div class="card-header-compact">
+                <h3><i class="fa-solid fa-microchip"></i> System Node Info</h3>
+              </div>
+              <div class="info-table">
+                <div class="info-row">
+                  <span>Microcontroller</span>
+                  <strong>ESP32 DevKit V1</strong>
+                </div>
+                <div class="info-row">
+                  <span>Microphone</span>
+                  <strong>INMP441 I2S Digital</strong>
+                </div>
+                <div class="info-row">
+                  <span>Room Buzzer</span>
+                  <strong>GPIO 18 (Smart Alert)</strong>
+                </div>
+                <div class="info-row">
+                  <span>Visual Level Bar</span>
+                  <strong>4 LEDs (Common GND)</strong>
+                </div>
+                <div class="info-row">
+                  <span>Cloud Database</span>
+                  <strong id="connectedDbName">rain-dei-default-rtdb</strong>
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 2: DOORSTEP VISITOR ASSISTANT (EchoSense STT & TTS Feature) -->
+      <!-- ================================================================= -->
+      <div id="tab-content-visitor" class="tab-view">
+        <div class="visitor-assistant-layout">
+          
+          <!-- LEFT: LIVE SPEECH TO TEXT FOR VISITORS -->
+          <div class="glass-panel stt-card">
+            <div class="card-header-compact">
+              <h3><i class="fa-solid fa-ear-listen color-blue"></i> Live Doorstep Speech-to-Text Captions</h3>
+              <span class="stt-badge" id="sttStatusBadge"><i class="fa-solid fa-microphone-slash"></i> Mic Off</span>
+            </div>
+            <p class="section-hint">When someone is at your door, activate the listener so their spoken words appear as live text on your screen in real time:</p>
+
+            <!-- Transcription Display -->
+            <div class="stt-transcript-box" id="sttTranscriptBox">
+              <p class="placeholder-caption">Tap "Start Listening to Visitor" below. When the visitor speaks, live captions will appear here immediately.</p>
+            </div>
+
+            <div class="stt-controls">
+              <button id="startSttBtn" class="btn-action primary" onclick="toggleSttRecognition()">
+                <i class="fa-solid fa-microphone"></i> <span id="sttBtnLabel">Start Listening to Visitor</span>
+              </button>
+              <button class="btn-action secondary" onclick="clearSttTranscript()">
+                <i class="fa-solid fa-eraser"></i> Clear Captions
+              </button>
+            </div>
+          </div>
+
+          <!-- RIGHT: TEXT TO SPEECH REPLIES FOR DEAF USER -->
+          <div class="glass-panel tts-card">
+            <div class="card-header-compact">
+              <h3><i class="fa-solid fa-bullhorn color-pink"></i> 1-Tap Text-to-Speech Voice Responses</h3>
+              <span class="chip-status">Speaks to Visitor</span>
+            </div>
+            <p class="section-hint">Tap any quick response to have your device speak aloud clearly to the person at the door:</p>
+
+            <!-- Quick Canned Replies -->
+            <div class="canned-replies-grid">
+              <button class="canned-btn" onclick="speakQuickReply('Please leave the package at the door, thank you!')">
+                <i class="fa-solid fa-box"></i> "Please leave the package at the door."
+              </button>
+              <button class="canned-btn" onclick="speakQuickReply('I am deaf. Please text me on WhatsApp or ring again.')">
+                <i class="fa-solid fa-hands-asl-interpreting"></i> "I am deaf, please text me."
+              </button>
+              <button class="canned-btn" onclick="speakQuickReply('Just a moment, I am coming to the door right now!')">
+                <i class="fa-solid fa-person-walking"></i> "Coming to the door in 1 minute!"
+              </button>
+              <button class="canned-btn" onclick="speakQuickReply('Who is it, and what is this regarding please?')">
+                <i class="fa-solid fa-circle-question"></i> "Who is it please?"
+              </button>
+              <button class="canned-btn" onclick="speakQuickReply('Not interested right now, thank you!')">
+                <i class="fa-solid fa-hand"></i> "Not interested, thank you."
+              </button>
+              <button class="canned-btn" onclick="speakQuickReply('Please wait, calling my family member.')">
+                <i class="fa-solid fa-phone"></i> "Please wait, calling someone."
+              </button>
+            </div>
+
+            <!-- Custom Type and Speak -->
+            <div class="custom-tts-box">
+              <label for="customTtsInput">Or type custom message to speak aloud:</label>
+              <div class="custom-tts-input-row">
+                <input type="text" id="customTtsInput" placeholder="Type message for visitor..." onkeydown="if(event.key==='Enter') speakCustomText()">
+                <button class="btn-action primary" onclick="speakCustomText()">
+                  <i class="fa-solid fa-volume-high"></i> Speak
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 3: EMERGENCY CONTACTS & DISPATCH (EchoSense Feature) -->
+      <!-- ================================================================= -->
+      <div id="tab-content-contacts" class="tab-view">
+        <div class="contacts-page-layout">
+          
+          <div class="glass-panel contacts-list-card">
+            <div class="card-header-compact">
+              <h3><i class="fa-solid fa-users-gear color-orange"></i> Trusted Emergency Contacts</h3>
+              <button class="btn-action secondary" onclick="toggleAddContactForm()">
+                <i class="fa-solid fa-user-plus"></i> Add Contact
+              </button>
+            </div>
+            <p class="section-hint">Direct 1-tap alerts configured for your immediate family, hostel warden, caregiver, or medical responder:</p>
+
+            <!-- Add Contact Form -->
+            <div class="add-contact-box hidden" id="addContactBox">
+              <h4>Add New Emergency Contact</h4>
+              <div class="contact-inputs-grid">
+                <input type="text" id="newContactName" placeholder="Full Name (e.g. Mom, Roommate, Warden)">
+                <input type="text" id="newContactRole" placeholder="Relationship / Role (e.g. Caregiver)">
+                <input type="tel" id="newContactPhone" placeholder="Phone with Country Code (e.g. +919876543210)">
+              </div>
+              <div class="contact-form-actions">
+                <button class="btn-action primary" onclick="saveNewContact()">Save Contact</button>
+                <button class="btn-action secondary" onclick="toggleAddContactForm()">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Contacts Cards Grid -->
+            <div class="contacts-grid" id="contactsGrid">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- SOS Broadcast Preview -->
+          <div class="glass-panel broadcast-preview-card">
+            <div class="card-header-compact">
+              <h3><i class="fa-solid fa-paper-plane color-red"></i> Quick Emergency Dispatch</h3>
+            </div>
+            <p class="section-hint">Instantly sends WhatsApp / SMS message to all saved contacts with current status:</p>
+            
+            <div class="message-preview-box">
+              <strong>Emergency Message Template:</strong>
+              <p id="sosMessageTemplate">🚨 EMERGENCY ALERT: AuraSound Assistive System in Room triggered! I am deaf/hard of hearing and need immediate assistance. Please check on me or call emergency services.</p>
+            </div>
+
+            <button class="btn-whatsapp-broadcast" onclick="broadcastWhatsAppAlert()">
+              <i class="fa-brands fa-whatsapp"></i> Send Instant WhatsApp Alert to Contact
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- TAB 4: SOUND EVENT LOG (Realtime Firebase /sound_events) -->
+      <!-- ================================================================= -->
+      <div id="tab-content-history" class="tab-view">
+        <div class="glass-panel history-full-card">
+          <div class="card-header-compact">
+            <div>
+              <h3><i class="fa-solid fa-list-check"></i> Historical Acoustic Events</h3>
+              <p class="section-hint">Real-time event feed logged in Firebase Realtime Database node <code>/sound_events</code></p>
+            </div>
+            <div class="history-actions">
+              <div class="filter-pills">
+                <button class="filter-pill active" onclick="filterHistory('ALL')">All</button>
+                <button class="filter-pill" onclick="filterHistory('CRITICAL')">Critical</button>
+                <button class="filter-pill" onclick="filterHistory('WARNING')">Warnings</button>
+                <button class="filter-pill" onclick="filterHistory('INFO')">Visitors</button>
+              </div>
+              <button class="btn-action secondary" onclick="clearEventHistory()">
+                <i class="fa-solid fa-trash-can"></i> Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Full Event List Table -->
+          <div class="events-table-wrapper">
+            <table class="events-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Sound Classification</th>
+                  <th>Severity</th>
+                  <th>Decibels</th>
+                  <th>Action / Description</th>
+                </tr>
+              </thead>
+              <tbody id="fullEventsTbody">
+                <tr>
+                  <td colspan="5" class="empty-state">No past sound events recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- SENSORY MATRIX MODAL (Prevent Sensory Overload - EchoSense Feature) -->
+  <!-- ===================================================================== -->
+  <div id="sensoryModal" class="modal-overlay hidden">
+    <div class="modal-box modal-wide">
+      <div class="modal-header">
+        <div class="logo-circle purple-glow"><i class="fa-solid fa-sliders"></i></div>
+        <div>
+          <h2>Smart Sensory & Tiered Alert Matrix</h2>
+          <p>Prevent sensory overload & customize visual signals per sound tier</p>
+        </div>
+        <button class="close-modal-btn" onclick="toggleSensoryModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="sensory-modal-body">
+        
+        <!-- TIER 1: EMERGENCY (FIRE / SIREN) -->
+        <div class="tier-card tier-emergency">
+          <div class="tier-top">
+            <span class="tier-badge red-badge">TIER 1: CRITICAL EMERGENCY</span>
+            <strong>Fire / Smoke Siren (🚨)</strong>
+          </div>
+          <div class="tier-content">
+            <p>Life Safety: Fullscreen Red Strobe + Hardware Buzzer are locked ON for survival protection.</p>
+            <span class="locked-pill"><i class="fa-solid fa-lock"></i> LOCKED ACTIVE FOR SAFETY</span>
+          </div>
+        </div>
+
+        <!-- TIER 2: SAFETY & DISTRESS (GLASS CRACK / BABY CRY) -->
+        <div class="tier-card">
+          <div class="tier-top">
+            <span class="tier-badge orange-badge">TIER 2: SAFETY & DISTRESS</span>
+            <strong>Glass Shatter (💥) / Baby Crying (👶)</strong>
+          </div>
+          <div class="tier-toggles">
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier2-strobe" checked onchange="saveSensoryPreferences()">
+              <span>Fullscreen Strobe Flash</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier2-vibe" checked onchange="saveSensoryPreferences()">
+              <span>Browser Vibration Pulse</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier2-led" checked onchange="saveSensoryPreferences()">
+              <span>ESP32 4-LED Bar</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- TIER 3: VISITORS & DOORWAY (DOORBELL / KNOCK / DOG BARK) -->
+        <div class="tier-card">
+          <div class="tier-top">
+            <span class="tier-badge blue-badge">TIER 3: VISITORS & PETS</span>
+            <strong>Doorbell (🔔) / Door Knock (🚪) / Dog Bark (🐕)</strong>
+          </div>
+          <div class="tier-toggles">
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier3-strobe" onchange="saveSensoryPreferences()">
+              <span>Fullscreen Strobe Flash</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier3-vibe" checked onchange="saveSensoryPreferences()">
+              <span>Mild Vibration Pulse</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier3-led" checked onchange="saveSensoryPreferences()">
+              <span>ESP32 4-LED Bar</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- TIER 4: HUMAN SPEECH (HIGH VOICE / SHOUTING) -->
+        <div class="tier-card">
+          <div class="tier-top">
+            <span class="tier-badge purple-badge">TIER 4: HUMAN SPEECH</span>
+            <strong>High Voice / Shouting (🗣️)</strong>
+          </div>
+          <div class="tier-toggles">
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier4-strobe" onchange="saveSensoryPreferences()">
+              <span>Fullscreen Strobe Flash</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier4-vibe" onchange="saveSensoryPreferences()">
+              <span>Vibration Pulse</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="pref-tier4-led" checked onchange="saveSensoryPreferences()">
+              <span>ESP32 4-LED Bar</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-action primary" onclick="toggleSensoryModal()">Save & Close Preferences</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- FIREBASE CONFIGURATION DRAWER -->
+  <!-- ===================================================================== -->
+  <div id="configDrawer" class="config-drawer hidden">
+    <div class="drawer-header">
+      <div class="drawer-title">
+        <i class="fa-solid fa-fire-flame-curved"></i>
+        <h3>Firebase Realtime DB Configuration</h3>
+      </div>
+      <button class="close-drawer-btn" onclick="toggleConfigDrawer()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="drawer-body">
+      <p class="drawer-intro">Connected directly to your Google Firebase Realtime Database for instantaneous zero-latency updates.</p>
+
+      <div class="form-group">
+        <label for="firebaseUrlInput">Firebase Realtime Database URL</label>
+        <input type="url" id="firebaseUrlInput" value="https://rain-dei-default-rtdb.firebaseio.com">
+        <small class="field-hint">e.g. <code>https://rain-dei-default-rtdb.firebaseio.com</code></small>
+      </div>
+
+      <div class="form-group">
+        <label for="firebaseAuthInput">Database Secret / Auth Token</label>
+        <input type="text" id="firebaseAuthInput" value="xxeSyW61RLsqJLy9O9pXmHr9RK5NR8Yo7cka2W0G">
+        <small class="field-hint">Stored securely in your local browser storage</small>
+      </div>
+
+      <div class="drawer-actions">
+        <button class="btn-action primary" onclick="saveFirebaseConfig()">
+          <i class="fa-solid fa-floppy-disk"></i> Save & Reconnect
+        </button>
+        <button class="btn-action secondary" onclick="testFirebaseConnection()">
+          <i class="fa-solid fa-vial"></i> Test Ping
+        </button>
+      </div>
+
+      <div class="test-result-box hidden" id="configTestResult"></div>
+
+      <div class="drawer-schema-info">
+        <h4>Database Active Nodes:</h4>
+        <ul>
+          <li><code>/live_telemetry</code>: Decibels, LED Level, Online Status</li>
+          <li><code>/latest_sound_classification</code>: AI Recognized Sound</li>
+          <li><code>/sound_events</code>: Historical Sound Feed</li>
+          <li><code>/sos_alert</code>: Room Buzzer Trigger (GPIO 18)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Portal Javascript -->
+  <script src="app.js"></script>
+</body>
+</html>

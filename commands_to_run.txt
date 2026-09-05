@@ -1,0 +1,139 @@
+================================================================================
+           AURASOUND IOT: COMMANDS TO RUN & QUICK START GUIDE
+================================================================================
+
+This document contains all the commands to run each part of the AuraSound IoT
+Assistive Hearing & Environmental Sound Intelligence System:
+
+  1. Web Portal (Assistive Dashboard & Visual Strobe Alert)
+  2. Python AI Acoustic Sound Classifier (Live Mic / Simulation)
+  3. ESP32 Hardware Firmware (INMP441 Mic + 4 LEDs + Buzzer)
+
+================================================================================
+1. RUNNING THE WEB PORTAL (Visual Alert Dashboard)
+================================================================================
+
+--- OPTION A: Using Python Local Server (Recommended) ---
+Open PowerShell or Command Prompt:
+
+  cd C:\Users\hp\Desktop\Intellectual
+  python -m http.server 5500 --directory web_portal
+
+Then open your browser and navigate to:
+  http://localhost:5500
+
+(To open it automatically in PowerShell):
+  Start-Process "http://localhost:5500"
+
+
+--- OPTION B: Using Node.js (Alternative) ---
+If you prefer Node.js:
+
+  cd C:\Users\hp\Desktop\Intellectual
+  npx -y serve web_portal -l 5500
+
+
+--- OPTION C: Direct Browser Launch ---
+Simply double-click the file:
+  C:\Users\hp\Desktop\Intellectual\web_portal\index.html
+
+Or via PowerShell:
+  Start-Process "C:\Users\hp\Desktop\Intellectual\web_portal\index.html"
+
+
+================================================================================
+2. RUNNING THE PYTHON SOUND CLASSIFIER ENGINE
+================================================================================
+
+The Python engine analyzes room acoustic audio, classifies sound events 
+(Glass Breaking, Siren, Dog Barking, Baby Crying, Door Knock, High Voice),
+and streams live telemetry and alerts to Google Firebase.
+
+--- Step 2.1: Install Dependencies (One-time) ---
+Open PowerShell:
+
+  cd C:\Users\hp\Desktop\Intellectual\python_backend
+  pip install -r requirements.txt
+
+
+--- Step 2.2: Run in Interactive SIMULATION Mode ---
+Allows triggering synthetic sound waveforms using keys (1 to 6) without 
+needing real physical sounds:
+
+  cd C:\Users\hp\Desktop\Intellectual\python_backend
+  python sound_classifier.py --mode sim
+
+  * Simulation Keys:
+    [1] Fire / Smoke Alarm (Siren)
+    [2] Glass Cracking / Breaking
+    [3] Dog Barking
+    [4] Baby Crying / Distress
+    [5] Door Knock / Chime
+    [6] High Voice / Shouting
+    [A] Run All Profiles in Sequence
+    [Q] Quit
+
+
+--- Step 2.3: Run in LIVE MICROPHONE Mode ---
+Captures audio live through your laptop/PC microphone, performs FFT & DSP 
+spectral feature extraction, and detects sounds in real time:
+
+  cd C:\Users\hp\Desktop\Intellectual\python_backend
+  python sound_classifier.py --mode live
+
+
+================================================================================
+3. RUNNING / FLASHING THE ESP32 HARDWARE FIRMWARE
+================================================================================
+
+Hardware Setup:
+  - ESP32 DevKit Board (Connected to USB port, e.g., COM6)
+  - INMP441 I2S Digital MEMS Microphone (SD=GPIO 32, WS=GPIO 25, SCK=GPIO 33)
+  - 4-LED Visual Bar (L1=GPIO 12, L2=GPIO 14, L3=GPIO 27, L4=GPIO 26)
+  - Buzzer Module (I/O=GPIO 18)
+
+--- Steps using Arduino IDE ---
+1. Open the sketch file in Arduino IDE:
+   C:\Users\hp\Desktop\Intellectual\firmware\esp32_firmware\esp32_firmware.ino
+
+2. Verify WiFi and Firebase settings in the sketch:
+   - const char* WIFI_SSID     = "YOUR_WIFI_NAME";
+   - const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+   - const char* FIREBASE_HOST = "https://rain-dei-default-rtdb.firebaseio.com";
+
+3. Install required libraries in Arduino IDE (Tools -> Manage Libraries):
+   - ArduinoJson (by Benoit Blanchon)
+
+4. Configure Board Settings:
+   - Tools -> Board -> ESP32 Arduino -> ESP32 Dev Module
+   - Tools -> Port -> COM6 (or the COM port shown for Silicon Labs CP210x)
+   - Tools -> Upload Speed -> 921600 (or 115200)
+
+5. Click "Upload" (Right Arrow button).
+   * Note: If the upload hangs at "Connecting........_____", press and hold 
+     the BOOT button on the ESP32 until the upload starts.
+
+6. Open Serial Monitor:
+   - Set baud rate to 115200 to view live I2S decibel readings and Firebase sync.
+
+
+================================================================================
+4. VERIFYING THE COMPLETE SYSTEM WORKFLOW
+================================================================================
+
+1. Start the Web Portal:
+   - Open http://localhost:5500
+   - You can click the "Demo Sound" buttons (Dog Bark, Glass Crack, Siren, etc.)
+     to verify immediate visual strobe flashing, decibel VU meters, and logs.
+   - Click "EMERGENCY SOS" to toggle the room buzzer trigger.
+
+2. Run the Python Backend:
+   - `python sound_classifier.py --mode sim`
+   - Trigger a sound (e.g. press 2 for Glass Break).
+   - Observe the Web Portal immediately flash red with the Glass Break alert!
+
+3. Power the ESP32:
+   - The 4-LED bar will mirror ambient decibel levels in real time.
+   - Any SOS triggered from the web portal will sound the ESP32 buzzer.
+
+================================================================================

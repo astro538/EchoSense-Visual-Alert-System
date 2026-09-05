@@ -1,0 +1,109 @@
+================================================================================
+   ESP32 AUDIBLE & VISUAL ASSISTIVE SYSTEM - HARDWARE CONNECTION GUIDE
+   Designed for Deaf & Hard of Hearing Individuals
+================================================================================
+
+This document specifies the exact pin-to-pin wiring connections between the
+ESP32 DevKit (30-pin / 38-pin), the INMP441 I2S digital microphone,
+the 3-pin buzzer module, and the 4 individual LEDs with Common Ground (Cathode).
+
+--------------------------------------------------------------------------------
+1. COMPONENT PIN SUMMARY
+--------------------------------------------------------------------------------
+
+A. ESP32 NodeMCU / DevKit V1 (3.3V Logic)
+
+B. INMP441 I2S Omnidirectional Digital Microphone (6 Pins)
+   - VDD : 3.3V Power Supply (DO NOT connect to 5V!)
+   - GND : Ground
+   - SD  : Serial Data Output (I2S Data)
+   - WS  : Word Select / Left-Right Clock (LRCK)
+   - SCK : Serial Clock (BCLK)
+   - L/R : Left / Right Channel Select (GND = Left, VDD = Right)
+
+C. 3-Pin Buzzer Module (Active or Passive Buzzer)
+   - VCC : 3.3V (or VIN)
+   - GND : Ground
+   - I/O (or S / SIG) : Signal Control Pin -> GPIO 18
+
+D. 4 Individual LEDs (Small 3mm or 5mm with Long +ve and Short -ve legs):
+   - Identifying LED legs:
+     * Long leg = Positive (+) Anode
+     * Short leg = Negative (-) Cathode (also flat edge on the LED body)
+   - WIRING CONFIGURATION (COMMON GROUND):
+     * LED 1 (Green)  : Long leg (+) -> ESP32 GPIO 12
+     * LED 2 (Yellow) : Long leg (+) -> ESP32 GPIO 14
+     * LED 3 (Orange) : Long leg (+) -> ESP32 GPIO 27
+     * LED 4 (Red)    : Long leg (+) -> ESP32 GPIO 26
+     * ALL 4 Short legs (-) Cathodes are joined together and connected to a SINGLE ESP32 GND pin!
+     * (Optional safety: A 220Ω-330Ω resistor can be placed on the common GND line or per LED).
+
+--------------------------------------------------------------------------------
+2. PIN-TO-PIN CONNECTION TABLE
+--------------------------------------------------------------------------------
+
+================================================================================
+COMPONENT          MODULE PIN              ESP32 PIN       FUNCTION / DESCRIPTION
+================================================================================
+INMP441 Mic        VDD                     3V3 (3.3V)      Power (Clean 3.3V rail)
+INMP441 Mic        GND                     GND             System Ground
+INMP441 Mic        SD (Data)               GPIO 32         I2S Serial Data In (I2S_SD)
+INMP441 Mic        WS (LRCK)               GPIO 25         I2S Word Select Clock
+INMP441 Mic        SCK (BCLK)              GPIO 33         I2S Bit Clock
+INMP441 Mic        L/R                     GND             Tied to GND for Left Channel
+--------------------------------------------------------------------------------
+3-Pin Buzzer       VCC                     3V3 (or VIN)    Power
+3-Pin Buzzer       GND                     GND             System Ground
+3-Pin Buzzer       I/O (S/SIG)             GPIO 18         Buzzer Digital Control
+--------------------------------------------------------------------------------
+LED 1 (Green)      Long Leg (+ve Anode)    GPIO 12         Level 1 (Audible > 44 dB)
+LED 2 (Yellow)     Long Leg (+ve Anode)    GPIO 14         Level 2 (Normal Speech > 58 dB)
+LED 3 (Orange)     Long Leg (+ve Anode)    GPIO 27         Level 3 (High Voice > 72 dB)
+LED 4 (Red)        Long Leg (+ve Anode)    GPIO 26         Level 4 (Peak Sound > 84 dB)
+All 4 LEDs         Short Legs (-ve joined) GND             Common Cathode Ground Rail
+--------------------------------------------------------------------------------
+ESP32 INBUILT LED  Onboard (Blue SMD LED)  GPIO 2          ZERO WIRING REQUIRED!
+                                                           Automatically blinks for all sound
+                                                           levels, alerts & buzzer if you don't
+                                                           have external LEDs connected!
+================================================================================
+
+--------------------------------------------------------------------------------
+3. ASCII SCHEMATIC & WIRING DIAGRAM
+--------------------------------------------------------------------------------
+
+                    +--------------------------+
+                    |       ESP32 DEVKIT       |
+                    |                          |
+   (3.3V Clean) ----| 3V3                  GND |---- (Common Ground Rail)
+                    |                          |       |   |   |   |
+   (Mic I2S WS) ----| GPIO 25          GPIO 18 |---- (Buzzer Signal Pin)
+   (Mic I2S SCK)----| GPIO 33          GPIO 12 |---- LED 1 (+ Long Leg, Green)
+   (Mic I2S SD) ----| GPIO 32          GPIO 14 |---- LED 2 (+ Long Leg, Yellow)
+                    |                  GPIO 27 |---- LED 3 (+ Long Leg, Orange)
+                    |                  GPIO 26 |---- LED 4 (+ Long Leg, Red)
+                    +--------------------------+       |   |   |   |
+                                                       v   v   v   v
+                                            [All 4 Short Legs joined to GND]
+
+--------------------------------------------------------------------------------
+4. LED BEHAVIOR & SOUND MAPPING
+--------------------------------------------------------------------------------
+
+  Sound dB Range    Level    LED 1    LED 2    LED 3    LED 4   Meaning
+  ----------------  -----    ------   ------   ------   ------  -------------------------
+  < 42 dB           L0       OFF      OFF      OFF      OFF     Quiet Room / Whisper
+  42 dB - 55 dB     L1       ON       OFF      OFF      OFF     Ambient Conversation
+  55 dB - 68 dB     L2       ON       ON       OFF      OFF     Normal Speech / TV
+  68 dB - 80 dB     L3       ON       ON       ON       OFF     High Voice / Shouting
+  > 80 dB           L4       ON       ON       ON       ON      Peak Alert / Crash / Break
+
+--------------------------------------------------------------------------------
+5. BUZZER OPERATING LOGIC (NO USELESS BUZZING)
+--------------------------------------------------------------------------------
+- Ambient sounds (L1, L2, L3, L4) control ONLY the visual LED bar.
+- The room buzzer is SILENT by default.
+- The buzzer ONLY sounds when an explicit Emergency SOS command is sent
+  from the Web Portal, and automatically silences itself after 7 seconds
+  for life safety without nuisance.
+================================================================================
