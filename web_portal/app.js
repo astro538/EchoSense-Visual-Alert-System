@@ -115,6 +115,14 @@ const state = {
   // SOS & Buzzer
   sosActive: false,
   sosCountdownTimer: null,
+  residentAddress: localStorage.getItem("aura_resident_address") || "Hostel Block B, Room 204",
+  activeEmergencyCall: {
+    inProgress: false,
+    category: null,
+    phone: "",
+    messageText: "",
+    repeatTimer: null
+  },
   
   // Historical Log (Persisted in localStorage with baseline events)
   events: JSON.parse(localStorage.getItem("aura_event_logs") || JSON.stringify([
@@ -322,25 +330,22 @@ function processTelemetryUpdate(telemetry) {
     const db = parseFloat(telemetry.sound_level_db) || 30.0;
     updateDecibelGauge(db);
 
-    // Auto-dispatch emergency WhatsApp alert if INMP441 mic decibel exceeds user slider limit
+    // High dB warning on telemetry: Visual warning only. SOS is strictly manual!
     const now = Date.now();
     if (db >= state.criticalDbThreshold && (now - state.lastLoudSoundAlertTime > 6000)) {
       state.lastLoudSoundAlertTime = now;
 
       const eventData = {
-        sound_class: "CRITICAL_PEAK_IMPACT",
-        display_name: "Critical Danger Audio (INMP441)",
-        severity: "CRITICAL",
-        icon: "💥",
+        sound_class: "HIGH_VOLUME_PEAK",
+        display_name: "High Sound Peak (INMP441)",
+        severity: "WARNING",
+        icon: "🔊",
         decibels: Math.round(db),
-        suggested_action: `INMP441 room mic sensed ${Math.round(db)} dB (exceeded ${state.criticalDbThreshold} dB threshold)! Automated dispatch active.`
+        suggested_action: `INMP441 room mic sensed ${Math.round(db)} dB (exceeded ${state.criticalDbThreshold} dB warning threshold). Emergency SOS is manual-only.`
       };
 
       recordSoundEvent(eventData);
       processSoundClassification(eventData);
-      speakVoiceWarning(`Emergency Alert! Critical loud sound of ${Math.round(db)} decibels detected by room microphone.`);
-      triggerEmergencySos();
-      autoDispatchEmergencyAlert(db, `Critical Danger Audio (${state.criticalDbThreshold} dB limit reached)`);
     }
   }
 
@@ -579,18 +584,19 @@ async function startLaptopMicCapture() {
       // SMART ACOUSTIC DETECTION & DEBOUNCE LOGIC (No false alarms on whispers)
       // =======================================================================
       
-      // A) CRITICAL DANGER AUDIO TRIGGER (exceeding adjustable slider threshold)
+      // A) HIGH SOUND LEVEL WARNING (exceeding adjustable slider threshold)
+      // Visual & log warning ONLY. Does NOT trigger SOS button or auto-dispatch calls!
       if (smoothedDb >= state.criticalDbThreshold && (now - state.lastLoudSoundAlertTime > 6000)) {
         state.lastLoudSoundAlertTime = now;
         sustainedHighVoiceFrames = 0;
 
         const eventData = {
-          sound_class: "CRITICAL_PEAK_IMPACT",
-          display_name: "Critical Danger Audio Impact",
-          severity: "CRITICAL",
-          icon: "💥",
+          sound_class: "HIGH_VOLUME_PEAK",
+          display_name: "High Volume Acoustic Peak",
+          severity: "WARNING",
+          icon: "🔊",
           decibels: Math.round(smoothedDb),
-          suggested_action: `Sound reached ${Math.round(smoothedDb)} dB (exceeded custom limit of ${state.criticalDbThreshold} dB)! Emergency dispatch active.`
+          suggested_action: `Sound reached ${Math.round(smoothedDb)} dB (crossed ${state.criticalDbThreshold} dB warning threshold). Visual indicator active. Emergency SOS is strictly manual.`
         };
 
         // 1. Record to persistent localStorage & UI feeds
@@ -599,14 +605,8 @@ async function startLaptopMicCapture() {
         // 2. Update Hero Spotlight
         processSoundClassification(eventData);
 
-        // 3. Audible Voice TTS Warning Announcement
-        speakVoiceWarning(`Emergency Alert! Critical loud sound of ${Math.round(smoothedDb)} decibels detected.`);
-
-        // 4. Ring Physical Room Buzzer on GPIO 18 & Strobe ESP32 Inbuilt LED on GPIO 2
-        triggerEmergencySos();
-
-        // 5. AUTOMATICALLY Send WhatsApp Message with Last 5 Logs to ALL Saved Contacts!
-        autoDispatchEmergencyAlert(smoothedDb, `Critical Danger Audio (${state.criticalDbThreshold} dB limit reached)`);
+        // NOTE: triggerEmergencySos() and autoDispatchEmergencyAlert() removed!
+        // SOS is strictly manual via the SOS button.
       }
       // B) ELEVATED VOICE / SHOUTING (72 dB - 81 dB)
       else if (smoothedDb >= 72.0 && smoothedDb < 82.0 && (now - state.lastLoudSoundAlertTime > 5000)) {
@@ -896,14 +896,20 @@ function autoDispatchEmergencyAlert(db, reason) {
   });
 }
 
-function showEmergencyDispatchToast(db, reason, fullMsg) {
+function showEmergencyDispatchToast(db, reason, fullMsg, customTitle) {
   const toast = document.getElementById("emergencyDispatchToast");
   const actions = document.getElementById("toastContactButtons");
   const summary = document.getElementById("dispatchToastSummary");
+  const titleEl = toast ? toast.querySelector(".toast-info strong") : null;
   if (!toast) return;
 
+  if (titleEl) {
+    titleEl.innerHTML = customTitle || "🚨 CRITICAL SOUND DETECTED & AUTOMATIC WHATSAPP ALERT DISPATCHED";
+  }
+
   if (summary) {
-    summary.textContent = `Critical sound of ${Math.round(db)} dB detected. Emergency message with last 5 logs dispatched to ${state.contacts.length} contacts. Room buzzer active on GPIO 18.`;
+    const contactNames = state.contacts.map(c => c.name).join(", ");
+    summary.textContent = `Emergency distress alert for "${state.residentAddress}" ready for ${state.contacts.length} contacts (${contactNames}). Room buzzer active on GPIO 18.`;
   }
 
   if (actions) {
@@ -1085,45 +1091,356 @@ function dismissStrobe() {
 
 
 // -----------------------------------------------------------------------------
-// 5. EMERGENCY SOS & PHYSICAL ROOM BUZZER CONTROLLER
+// 5. EMERGENCY SOS, DEAF VOICE CALLING & PHYSICAL ROOM BUZZER CONTROLLER
 // -----------------------------------------------------------------------------
-function processSosUpdate(sosState) {
-  const isActive = (sosState === true || sosState === "true");
-  state.sosActive = isActive;
+function openEmergencyCategoryModal() {
+  const modal = document.getElementById("emergencyCategoryModal");
+  if (modal) modal.classList.remove("hidden");
+  const addrEl = document.getElementById("displayResidentAddress");
+  if (addrEl) addrEl.textContent = state.residentAddress;
+  const inputEl = document.getElementById("residentAddressInput");
+  if (inputEl) inputEl.value = state.residentAddress;
 
-  const btn = document.getElementById("triggerSosBtn");
-  const badge = document.getElementById("buzzerStateBadge");
-  const silenceBtn = document.getElementById("silenceSosBtn");
-  const btnText = document.getElementById("sosBtnText");
-  const btnSub = document.getElementById("sosBtnSub");
-
-  if (isActive) {
-    if (badge) {
-      badge.textContent = "BUZZER SOUNDING (GPIO 18)";
-      badge.className = "buzzer-state-badge sounding";
-    }
-    if (btn) btn.classList.add("sos-pulsing");
-    if (btnText) btnText.textContent = "SOS ACTIVE IN ROOM";
-    if (btnSub) btnSub.textContent = "Buzzer pulsing on ESP32";
-    if (silenceBtn) silenceBtn.classList.remove("hidden");
-  } else {
-    if (badge) {
-      badge.textContent = "BUZZER IDLE";
-      badge.className = "buzzer-state-badge idle";
-    }
-    if (btn) btn.classList.remove("sos-pulsing");
-    if (btnText) btnText.textContent = "TRIGGER EMERGENCY SOS";
-    if (btnSub) btnSub.textContent = "Sounds room buzzer for 7s";
-    if (silenceBtn) silenceBtn.classList.add("hidden");
-
-    if (state.sosCountdownTimer) {
-      clearInterval(state.sosCountdownTimer);
-      state.sosCountdownTimer = null;
-    }
+  // Show active neighbour name & phone dynamically on the category card
+  const config = getEmergencyConfig('neighbour');
+  const neighbourBadge = document.getElementById("neighbourContactDisplayBadge");
+  if (neighbourBadge && config && config.neighbourContact) {
+    neighbourBadge.innerHTML = `<i class="fa-solid fa-phone"></i> ${escapeHtml(config.neighbourContact.name)}: ${escapeHtml(config.neighbourContact.phone)} + <i class="fa-brands fa-whatsapp"></i>`;
   }
 }
 
-async function triggerEmergencySos() {
+function closeEmergencyCategoryModal() {
+  const modal = document.getElementById("emergencyCategoryModal");
+  if (modal) modal.classList.add("hidden");
+  const editBox = document.getElementById("addressEditBox");
+  if (editBox) editBox.classList.add("hidden");
+}
+
+function toggleEditAddress() {
+  const box = document.getElementById("addressEditBox");
+  if (box) box.classList.toggle("hidden");
+}
+
+function saveResidentAddress() {
+  const inputEl = document.getElementById("residentAddressInput");
+  if (inputEl && inputEl.value.trim()) {
+    state.residentAddress = inputEl.value.trim();
+    localStorage.setItem("aura_resident_address", state.residentAddress);
+    const addrEl = document.getElementById("displayResidentAddress");
+    if (addrEl) addrEl.textContent = state.residentAddress;
+  }
+  const editBox = document.getElementById("addressEditBox");
+  if (editBox) editBox.classList.add("hidden");
+}
+
+function getEmergencyConfig(categoryKey) {
+  const addr = state.residentAddress;
+  
+  // Pick the primary contact: prioritize user-added contacts (newest added contact)
+  let targetContact = null;
+  if (state.contacts && state.contacts.length > 0) {
+    // Look for user-added contacts (id > 1000) from newest to oldest
+    const userAdded = state.contacts.slice().reverse().find(c => c.id > 1000);
+    if (userAdded) {
+      targetContact = userAdded;
+    } else {
+      // Otherwise find by keyword
+      targetContact = state.contacts.find(c => {
+        const r = (c.role || "").toLowerCase();
+        const n = (c.name || "").toLowerCase();
+        return r.includes("neighbor") || r.includes("neighbour") || r.includes("roommate") || n.includes("neighbor") || n.includes("neighbour");
+      }) || state.contacts[state.contacts.length - 1];
+    }
+  }
+  if (!targetContact) {
+    targetContact = { name: "Trusted Contact", phone: "+919876543210" };
+  }
+
+  switch (categoryKey) {
+    case 'police':
+      return {
+        label: "Police Emergency (112)",
+        phone: "112",
+        spokenText: `Emergency! Emergency! This is an urgent automated voice call from a deaf resident who cannot speak on a phone call. Police assistance is urgently required at ${addr}. The resident is in danger and cannot speak. Please dispatch officers to ${addr} immediately!`
+      };
+    case 'women':
+      return {
+        label: "Women Helpline (1091)",
+        phone: "1091",
+        spokenText: `Emergency distress call! This is an automated voice call from a deaf woman who cannot speak on a phone call. Urgent safety assistance is required at ${addr}. Please send help to ${addr} immediately!`
+      };
+    case 'fire':
+      return {
+        label: "Fire Brigade (101)",
+        phone: "101",
+        spokenText: `Fire emergency! Fire emergency! This is an automated call from a deaf resident who cannot speak on a phone call. Fire assistance is needed at ${addr} immediately. Please dispatch a fire engine to ${addr}!`
+      };
+    case 'ambulance':
+      return {
+        label: "Ambulance / Medical Emergency (108)",
+        phone: "108",
+        spokenText: `Medical emergency! This is an automated voice call from a deaf resident who cannot speak. Medical help and an ambulance are urgently required at ${addr}. Please dispatch an ambulance to ${addr} immediately!`
+      };
+    case 'neighbour':
+    default:
+      return {
+        label: `${targetContact.name} (${targetContact.phone})`,
+        phone: targetContact.phone,
+        isNeighbour: true,
+        neighbourContact: targetContact,
+        spokenText: `Emergency alert! This call is from your deaf neighbor at ${addr}. I cannot speak on a voice call and require your immediate assistance. Please come over to my room at ${addr} immediately!`
+      };
+  }
+}
+
+function triggerCategoryCall(categoryKey) {
+  const config = getEmergencyConfig(categoryKey);
+  closeEmergencyCategoryModal();
+
+  // 1. Ring Room Buzzer on ESP32
+  triggerEmergencyBuzzerHardware();
+
+  // 2. Clear distinction:
+  // - Helplines (Police 112, Women 1091, Fire 101, Ambulance 108): Direct phone call
+  // - Neighbour / Contacts (sonam): Direct WhatsApp message
+  if (categoryKey === 'neighbour') {
+    sendBroadcastEmergencyMessages(config);
+  } else {
+    // Official Emergency Helpline -> Call directly (Police, Fire, Ambulance, Women Helpline)
+    startDirectPhoneCall(config.phone, config.label);
+  }
+}
+
+function startDirectPhoneCall(phone, label) {
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  if (!cleanPhone) return;
+
+  console.log(`[DIRECT-CALL] Calling emergency helpline ${label || cleanPhone}:`, cleanPhone);
+
+  // 1. Launch native dialer for helpline (112, 108, 101, 1091)
+  const dialAnchor = document.createElement("a");
+  dialAnchor.href = `tel:${cleanPhone}`;
+  dialAnchor.target = "_self";
+  dialAnchor.rel = "noopener noreferrer";
+  document.body.appendChild(dialAnchor);
+  dialAnchor.click();
+  setTimeout(() => {
+    try { dialAnchor.remove(); } catch(e) {}
+  }, 1000);
+
+  // 2. Fallback window.location assign
+  setTimeout(() => {
+    try {
+      window.location.assign(`tel:${cleanPhone}`);
+    } catch(err) {
+      console.warn("[DIRECT-CALL] Location assign error:", err);
+    }
+  }, 200);
+
+  // 3. Show helpline call toast banner at top of dashboard
+  showHelplineCallToast(cleanPhone, label || cleanPhone);
+
+  // 4. Record in historical event log
+  recordSoundEvent({
+    sound_class: "HELPLINE_CALL",
+    display_name: `Calling ${label || cleanPhone}`,
+    severity: "CRITICAL",
+    icon: "📞",
+    decibels: Math.round(state.currentDb || 85),
+    action: `Direct phone call initiated to emergency helpline ${cleanPhone}. Room buzzer sounding on GPIO 18.`
+  });
+}
+
+function showHelplineCallToast(phone, label) {
+  const toast = document.getElementById("emergencyDispatchToast");
+  const actions = document.getElementById("toastContactButtons");
+  const summary = document.getElementById("dispatchToastSummary");
+  const titleEl = toast ? toast.querySelector(".toast-info strong") : null;
+  if (!toast) return;
+
+  if (titleEl) {
+    titleEl.innerHTML = `📞 CALLING EMERGENCY HELPLINE: ${escapeHtml(label)}`;
+  }
+
+  if (summary) {
+    summary.textContent = `Direct call launched to official emergency helpline ${phone}. Room buzzer active on ESP32.`;
+  }
+
+  if (actions) {
+    actions.innerHTML = `
+      <a href="tel:${phone}" class="btn-toast-contact" style="background:#06b6d4;">
+        <i class="fa-solid fa-phone"></i> Redial ${escapeHtml(phone)}
+      </a>
+    `;
+  }
+
+  toast.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function sendBroadcastEmergencyMessages(config) {
+  if (!state.contacts || state.contacts.length === 0) return;
+
+  const addr = state.residentAddress;
+  let msgText = "";
+
+  if (config.phone === "112") {
+    msgText = `🚨 *URGENT POLICE EMERGENCY*: Hello, I am your deaf neighbor from ${addr}. I am in danger and require urgent police assistance! Please call the police (112) or come check on me at ${addr} immediately!`;
+  } else if (config.phone === "1091") {
+    msgText = `🚨 *URGENT WOMEN SAFETY EMERGENCY*: Hello, I am your deaf neighbor from ${addr}. Urgent women safety distress! Please call 1091 or come check on me at ${addr} immediately!`;
+  } else if (config.phone === "101") {
+    msgText = `🚨 *FIRE EMERGENCY ALERT*: Hello, I am your deaf neighbor from ${addr}. Smoke/fire emergency detected! Please call the fire brigade (101) and come to ${addr} immediately!`;
+  } else if (config.phone === "108") {
+    msgText = `🚨 *URGENT MEDICAL EMERGENCY*: Hello, I am your deaf neighbor from ${addr}. Severe medical emergency! Please call an ambulance (108) and come to ${addr} immediately!`;
+  } else {
+    msgText = `🚨 *URGENT EMERGENCY*: Hello, I am your deaf neighbor from ${addr}. I cannot speak on phone calls and need your immediate help right now! Please come over to my room at ${addr} immediately!`;
+  }
+
+  // 1. Show the prominent on-screen emergency dispatch toast HUD with all contacts
+  showEmergencyDispatchToast(
+    state.currentDb || 85,
+    config.label,
+    msgText,
+    `🚨 EMERGENCY SOS ACTIVATED: DIRECT WHATSAPP ALERTS DISPATCHED`
+  );
+
+  // 2. Open WhatsApp directly for the primary / user-added contact (e.g. sonam)
+  const contactsList = state.contacts.slice().reverse();
+  const primaryContact = config.neighbourContact || contactsList.find(c => c.id > 1000) || contactsList[0];
+  if (primaryContact) {
+    const cleanPrimary = primaryContact.phone.replace(/[^0-9]/g, '');
+    if (cleanPrimary) {
+      const waUrl = `https://api.whatsapp.com/send/?phone=${cleanPrimary}&text=${encodeURIComponent(msgText)}`;
+      window.open(waUrl, "_blank");
+    }
+  }
+
+  // 3. Automatically dispatch to ALL remaining contacts in the list
+  const otherContacts = contactsList.filter(c => c !== primaryContact);
+  otherContacts.forEach((contact, idx) => {
+    const cleanPhone = contact.phone.replace(/[^0-9]/g, '');
+    if (!cleanPhone) return;
+    const waUrl = `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${encodeURIComponent(msgText)}`;
+    
+    setTimeout(() => {
+      try {
+        const win = window.open(waUrl, "_blank");
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          console.warn("[AUTO-DISPATCH] Pop-up blocked for:", contact.name, contact.phone);
+        }
+      } catch (e) {
+        console.warn("[AUTO-DISPATCH] Window open error:", e);
+      }
+    }, 400 + (idx * 600));
+  });
+
+  // 4. Smoothly scroll to the top of the dashboard so the red dispatch banner is instantly visible
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 5. Record in historical event log & localStorage
+  recordSoundEvent({
+    sound_class: "SOS_BROADCAST_DISPATCH",
+    display_name: `Emergency Dispatched to All ${state.contacts.length} Contacts`,
+    severity: "CRITICAL",
+    icon: "📲",
+    decibels: Math.round(state.currentDb || 85),
+    action: `Emergency alert broadcast directly to all ${state.contacts.length} contacts (${state.contacts.map(c => c.name).join(", ")}). Direct WhatsApp links ready.`
+  });
+}
+
+function openActiveCallHud(config) {
+  const modal = document.getElementById("activeCallHudModal");
+  const labelEl = document.getElementById("activeCallRecipientLabel");
+  const textEl = document.getElementById("activeCallSpokenTranscript");
+  const subEl = document.getElementById("activeCallSub");
+
+  if (labelEl) labelEl.textContent = `Calling ${config.label}`;
+  if (textEl) textEl.textContent = `"${config.spokenText}"`;
+  if (subEl) subEl.textContent = "Call placed • Resident side is silent (Sound plays for responder)";
+  if (modal) modal.classList.remove("hidden");
+
+  state.activeEmergencyCall = {
+    inProgress: true,
+    category: config.label,
+    phone: config.phone,
+    messageText: config.spokenText,
+    isSpeakingLocally: false,
+    repeatTimer: null
+  };
+
+  // Ensure user's device does NOT speak automatically
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+function transmitVoiceNoteToSpeakerphone() {
+  if (!state.activeEmergencyCall || !state.activeEmergencyCall.messageText) return;
+  
+  const btn = document.getElementById("btnTransmitVoice");
+  if (state.activeEmergencyCall.isSpeakingLocally) {
+    // If currently speaking, stop it
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    state.activeEmergencyCall.isSpeakingLocally = false;
+    if (btn) btn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Play Voice into Speakerphone`;
+  } else {
+    // Start transmitting voice into speakerphone for responder
+    state.activeEmergencyCall.isSpeakingLocally = true;
+    if (btn) btn.innerHTML = `<i class="fa-solid fa-volume-xmark"></i> Stop Voice Note Playback`;
+    playSpokenVoiceNoteLoop(state.activeEmergencyCall.messageText);
+  }
+}
+
+function playSpokenVoiceNoteLoop(message) {
+  if (!("speechSynthesis" in window)) {
+    console.warn("SpeechSynthesis not available in browser.");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(message);
+  utterance.rate = 0.95;
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+
+  utterance.onend = () => {
+    if (state.activeEmergencyCall && state.activeEmergencyCall.inProgress && state.activeEmergencyCall.isSpeakingLocally) {
+      state.activeEmergencyCall.repeatTimer = setTimeout(() => {
+        if (state.activeEmergencyCall && state.activeEmergencyCall.inProgress && state.activeEmergencyCall.isSpeakingLocally) {
+          window.speechSynthesis.speak(utterance);
+        }
+      }, 5000);
+    }
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function replayEmergencyVoiceNote() {
+  transmitVoiceNoteToSpeakerphone();
+}
+
+function endEmergencyCall() {
+  if (state.activeEmergencyCall) {
+    state.activeEmergencyCall.inProgress = false;
+    state.activeEmergencyCall.isSpeakingLocally = false;
+    if (state.activeEmergencyCall.repeatTimer) {
+      clearTimeout(state.activeEmergencyCall.repeatTimer);
+      state.activeEmergencyCall.repeatTimer = null;
+    }
+  }
+
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+
+  const modal = document.getElementById("activeCallHudModal");
+  if (modal) modal.classList.add("hidden");
+
+  silenceEmergencyBuzzer();
+}
+
+async function triggerEmergencyBuzzerHardware() {
   console.log("[SOS] Triggering room buzzer on ESP32...");
   const cleanUrl = state.firebaseUrl.replace(/\/$/, '') + `/sos_alert.json?auth=${state.authToken}`;
 
@@ -1153,6 +1470,47 @@ async function triggerEmergencySos() {
     }
   } catch (err) {
     console.error("[SOS Trigger Error]", err);
+  }
+}
+
+async function triggerEmergencySos() {
+  // When user manually touches SOS button, open the Emergency Category Selection Modal!
+  openEmergencyCategoryModal();
+}
+
+function processSosUpdate(sosState) {
+  const isActive = (sosState === true || sosState === "true");
+  state.sosActive = isActive;
+
+  const btn = document.getElementById("triggerSosBtn");
+  const badge = document.getElementById("buzzerStateBadge");
+  const silenceBtn = document.getElementById("silenceSosBtn");
+  const btnText = document.getElementById("sosBtnText");
+  const btnSub = document.getElementById("sosBtnSub");
+
+  if (isActive) {
+    if (badge) {
+      badge.textContent = "BUZZER SOUNDING (GPIO 18)";
+      badge.className = "buzzer-state-badge sounding";
+    }
+    if (btn) btn.classList.add("sos-pulsing");
+    if (btnText) btnText.textContent = "SOS ACTIVE IN ROOM";
+    if (btnSub) btnSub.textContent = "Buzzer pulsing on ESP32";
+    if (silenceBtn) silenceBtn.classList.remove("hidden");
+  } else {
+    if (badge) {
+      badge.textContent = "BUZZER IDLE";
+      badge.className = "buzzer-state-badge idle";
+    }
+    if (btn) btn.classList.remove("sos-pulsing");
+    if (btnText) btnText.textContent = "TOUCH FOR EMERGENCY SOS";
+    if (btnSub) btnSub.textContent = "Police, Women Help, Fire, Neighbour";
+    if (silenceBtn) silenceBtn.classList.add("hidden");
+
+    if (state.sosCountdownTimer) {
+      clearInterval(state.sosCountdownTimer);
+      state.sosCountdownTimer = null;
+    }
   }
 }
 
@@ -1388,9 +1746,14 @@ function renderEmergencyContacts() {
         <span>${escapeHtml(contact.role)}</span>
         <small>${escapeHtml(contact.phone)}</small>
       </div>
-      <a href="${waLink}" target="_blank" class="btn-contact-action" title="Send WhatsApp Message">
-        <i class="fa-brands fa-whatsapp"></i>
-      </a>
+      <div class="contact-actions-wrap">
+        <a href="tel:${cleanPhone}" class="btn-contact-action call-btn" title="Call ${escapeHtml(contact.name)}">
+          <i class="fa-solid fa-phone"></i>
+        </a>
+        <a href="${waLink}" target="_blank" class="btn-contact-action" title="Send WhatsApp Message">
+          <i class="fa-brands fa-whatsapp"></i>
+        </a>
+      </div>
       <button class="btn-icon-subtle" onclick="deleteContact(${contact.id})" title="Delete Contact">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -1805,4 +2168,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Start Realtime Firebase Sync
   initFirebaseSync();
+
+  // Attach explicit click listener to manual SOS button
+  const sosBtn = document.getElementById("triggerSosBtn");
+  if (sosBtn) {
+    sosBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openEmergencyCategoryModal();
+    });
+  }
 });

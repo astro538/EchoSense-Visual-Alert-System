@@ -1600,6 +1600,23 @@ body {
   transform: scale(1.08);
 }
 
+.btn-contact-action.call-btn {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.35);
+  color: #06b6d4;
+}
+
+.btn-contact-action.call-btn:hover {
+  background: #06b6d4;
+  color: #fff;
+}
+
+.contact-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .btn-icon-subtle {
   background: none;
   border: none;
@@ -2226,4 +2243,394 @@ body {
   .contact-inputs-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ==========================================================================
+   DEAF EMERGENCY CALLING & CATEGORY MODAL SYSTEM
+   ========================================================================== */
+#emergencyCategoryModal,
+#activeCallHudModal {
+  z-index: 10001;
+}
+
+.category-modal-card {
+  max-width: 620px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 20px 60px rgba(220, 38, 38, 0.25), 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+.resident-location-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin: 16px 0 12px;
+}
+
+.location-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.location-info i {
+  font-size: 1.4rem;
+}
+
+.location-info small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.location-info strong {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.btn-edit-address {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit-address:hover {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: var(--accent-cyan);
+}
+
+.address-edit-box {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.address-edit-box input {
+  flex: 1;
+  background: rgba(15, 22, 36, 0.9);
+  border: 1px solid var(--accent-cyan);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.btn-save-address {
+  background: var(--accent-cyan);
+  border: none;
+  color: #000;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modal-instruction {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+  line-height: 1.45;
+}
+
+.emergency-categories-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.emergency-cat-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  width: 100%;
+}
+
+.emergency-cat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.cat-icon-wrap {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.cat-police .cat-icon-wrap { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+.cat-police:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.08); }
+
+.cat-women .cat-icon-wrap { background: rgba(236, 72, 153, 0.2); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.4); }
+.cat-women:hover { border-color: #ec4899; background: rgba(236, 72, 153, 0.08); }
+
+.cat-fire .cat-icon-wrap { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.cat-fire:hover { border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+
+.cat-ambulance .cat-icon-wrap { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+.cat-ambulance:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.08); }
+
+.cat-neighbour .cat-icon-wrap { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+.cat-neighbour:hover { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+
+.cat-details {
+  flex: 1;
+}
+
+.cat-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-title-row strong {
+  font-size: 1.05rem;
+  color: #fff;
+}
+
+.cat-dial-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cat-dial-badge.badge-combo {
+  background: rgba(37, 211, 102, 0.15);
+  color: #25d366;
+  border: 1px solid rgba(37, 211, 102, 0.35);
+}
+
+.cat-details p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.cat-arrow {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.modal-footer-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ==========================================================================
+   ACTIVE CALL ASSISTANCE HUD MODAL
+   ========================================================================== */
+.active-call-card {
+  max-width: 520px;
+  width: 92%;
+  padding: 28px;
+  text-align: center;
+  border: 2px solid #22c55e;
+  box-shadow: 0 0 50px rgba(34, 197, 94, 0.35), 0 20px 60px rgba(0, 0, 0, 0.85);
+  animation: callGlowPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes callGlowPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.3), 0 20px 60px rgba(0, 0, 0, 0.85); }
+  50% { box-shadow: 0 0 70px rgba(34, 197, 94, 0.6), 0 20px 60px rgba(0, 0, 0, 0.85); }
+}
+
+.active-call-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.call-pulse-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.8);
+  animation: bouncePhone 1.2s infinite ease-in-out;
+}
+
+@keyframes bouncePhone {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.call-status-tag {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #22c55e;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.call-status-tag i {
+  font-size: 0.5rem;
+  animation: blinkFast 1s infinite;
+}
+
+@keyframes blinkFast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.active-call-header h3 {
+  font-size: 1.35rem;
+  color: #fff;
+  margin: 4px 0;
+}
+
+.active-call-header p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.voice-wave-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 48px;
+  margin: 16px 0;
+}
+
+.voice-wave-bar {
+  width: 6px;
+  background: #22c55e;
+  border-radius: 4px;
+  animation: wavePulse 1.2s infinite ease-in-out;
+}
+
+.voice-wave-bar:nth-child(1) { height: 16px; animation-delay: 0.1s; }
+.voice-wave-bar:nth-child(2) { height: 32px; animation-delay: 0.2s; }
+.voice-wave-bar:nth-child(3) { height: 44px; animation-delay: 0.3s; }
+.voice-wave-bar:nth-child(4) { height: 24px; animation-delay: 0.4s; }
+.voice-wave-bar:nth-child(5) { height: 48px; animation-delay: 0.5s; }
+.voice-wave-bar:nth-child(6) { height: 36px; animation-delay: 0.6s; }
+.voice-wave-bar:nth-child(7) { height: 18px; animation-delay: 0.7s; }
+
+@keyframes wavePulse {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50% { transform: scaleY(1.0); opacity: 1.0; }
+}
+
+.spoken-transcript-card {
+  background: rgba(15, 22, 36, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+.spoken-transcript-card small {
+  font-size: 0.75rem;
+  color: #22c55e;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.spoken-transcript-card p {
+  font-size: 0.88rem;
+  color: #f1f5f9;
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.active-call-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-repeat-voice {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-repeat-voice:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-hangup-call {
+  flex: 1.2;
+  background: #dc2626;
+  border: none;
+  color: #fff;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-hangup-call:hover {
+  background: #b91c1c;
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
 }

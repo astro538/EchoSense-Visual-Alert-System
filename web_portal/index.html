@@ -37,6 +37,7 @@
 
   <div class="app-layout">
     <!-- TOP NAVIGATION HEADER -->
+    <header class="app-header">
       <!-- Top Header Row -->
       <div class="top-nav-main">
         <div class="brand">
@@ -214,10 +215,10 @@
               <!-- Hardware 4-LED Sound Level Bar (Common Cathode Mirror) -->
               <div class="metric-card glass-panel led-mirror-card">
                 <div class="card-header-compact">
-                  <h3><i class="fa-solid fa-lightbulb"></i> Hardware 4-LED Sound Bar</h3>
+                  <h3><i class="fa-solid fa-lightbulb"></i> Room Light (Hardware LED Bar)</h3>
                   <span class="chip-status" id="ledStatusChip">L0 • Quiet</span>
                 </div>
-                <p class="section-hint">Mirrors ESP32 Pins GPIO 12 (L1), 14 (L2), 27 (L3), 26 (L4) with Common GND:</p>
+                <p class="section-hint">Mirrors Room Light ESP32 Pins GPIO 12 (L1), 14 (L2), 27 (L3), 26 (L4) with Common GND:</p>
 
                 <div class="led-bar-visual">
                   <div class="led-unit" id="virtualLed1">
@@ -258,8 +259,8 @@
                 <div class="threshold-title">
                   <i class="fa-solid fa-sliders color-red"></i>
                   <div>
-                    <h3>Critical Danger Audio Trigger Limit</h3>
-                    <p>Adjust the threshold in dB that automatically dispatches WhatsApp to saved contacts, sounds buzzer & flashes LEDs</p>
+                    <h3>High Sound Warning Limit</h3>
+                    <p>Adjust the visual LED & gauge warning limit (Emergency SOS is manual-only to prevent false alarms)</p>
                   </div>
                 </div>
                 <span class="threshold-chip" id="thresholdDisplayChip">82 dB • Default</span>
@@ -274,7 +275,7 @@
                 </div>
                 <input type="range" id="criticalDbSlider" min="60" max="95" step="1" value="82" class="styled-range-slider" oninput="onCriticalThresholdChange(this.value)">
                 <div class="slider-status-row">
-                  <span class="slider-hint"><i class="fa-brands fa-whatsapp color-whatsapp"></i> Sounds exceeding this limit automatically trigger WhatsApp alert with last 5 logs + room buzzer + TTS.</span>
+                  <span class="slider-hint"><i class="fa-solid fa-shield-halved color-cyan"></i> Sounds exceeding this limit show on gauge & LEDs. SOS calls are strictly manual to avoid false dispatch.</span>
                   <div class="slider-val-badge">
                     <span>Active Trigger:</span>
                     <strong id="sliderValueText">82 dB SPL</strong>
@@ -293,23 +294,23 @@
               <div class="sos-glow"></div>
               <div class="sos-header">
                 <div class="sos-title-wrap">
-                  <i class="fa-solid fa-bell-concierge"></i>
+                  <i class="fa-solid fa-triangle-exclamation color-red"></i>
                   <div>
-                    <h3>Room SOS & Buzzer Controller</h3>
-                    <p>Trigger physical buzzer on ESP32 GPIO 18</p>
+                    <h3>Deaf Resident Emergency SOS</h3>
+                    <p>Direct Calling & Automated Voice Note Assistant</p>
                   </div>
                 </div>
                 <span class="buzzer-state-badge idle" id="buzzerStateBadge">BUZZER IDLE</span>
               </div>
 
-              <p class="sos-desc">Need assistance from hearing family or roommates? Press the SOS button to sound an audible alert pattern on the room's physical ESP32 buzzer.</p>
+              <p class="sos-desc">Touch the SOS button to choose emergency service (Police, Women Helpline, Fire, Ambulance, Neighbour). EchoSense places the call and automatically plays a voice message stating you are deaf and need help.</p>
 
               <!-- SOS Panic Button -->
-              <button id="triggerSosBtn" class="btn-sos-main" onclick="triggerEmergencySos()">
+              <button id="triggerSosBtn" class="btn-sos-main" onclick="openEmergencyCategoryModal()">
                 <div class="btn-sos-content">
-                  <i class="fa-solid fa-triangle-exclamation"></i>
-                  <span id="sosBtnText">TRIGGER EMERGENCY SOS</span>
-                  <small id="sosBtnSub">Sounds room buzzer for 7s</small>
+                  <i class="fa-solid fa-phone-volume"></i>
+                  <span id="sosBtnText">TOUCH FOR EMERGENCY SOS</span>
+                  <small id="sosBtnSub">Police, Women Help, Fire, Neighbour</small>
                 </div>
               </button>
 
@@ -320,10 +321,10 @@
 
               <div class="sos-features-row">
                 <div class="sos-feature-pill">
-                  <i class="fa-solid fa-clock"></i> 7s Safety Auto-Cutoff
+                  <i class="fa-solid fa-phone"></i> Direct Calling
                 </div>
                 <div class="sos-feature-pill">
-                  <i class="fa-solid fa-shield-check"></i> Firebase Bidirectional
+                  <i class="fa-solid fa-bullhorn"></i> Deaf Voice Note
                 </div>
               </div>
             </div>
@@ -573,7 +574,7 @@
             <strong>Fire / Smoke Siren (🚨)</strong>
           </div>
           <div class="tier-content">
-            <p>Life Safety: Fullscreen Red Strobe + Hardware Buzzer are locked ON for survival protection.</p>
+            <p>Life Safety: Web (Strobe) + Band (Vibration) + Room Light (LED) + Room Buzzer are locked ON for survival protection.</p>
             <span class="locked-pill"><i class="fa-solid fa-lock"></i> LOCKED ACTIVE FOR SAFETY</span>
           </div>
         </div>
@@ -587,15 +588,15 @@
           <div class="tier-toggles">
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier2-strobe" checked onchange="saveSensoryPreferences()">
-              <span>Fullscreen Strobe Flash</span>
+              <span><i class="fa-solid fa-desktop color-cyan"></i> Web (Screen Flash)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier2-vibe" checked onchange="saveSensoryPreferences()">
-              <span>Browser Vibration Pulse</span>
+              <span><i class="fa-solid fa-clock color-orange"></i> Band (Vibration)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier2-led" checked onchange="saveSensoryPreferences()">
-              <span>ESP32 4-LED Bar</span>
+              <span><i class="fa-solid fa-lightbulb color-yellow"></i> Room Light</span>
             </label>
           </div>
         </div>
@@ -609,15 +610,15 @@
           <div class="tier-toggles">
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier3-strobe" onchange="saveSensoryPreferences()">
-              <span>Fullscreen Strobe Flash</span>
+              <span><i class="fa-solid fa-desktop color-cyan"></i> Web (Screen Flash)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier3-vibe" checked onchange="saveSensoryPreferences()">
-              <span>Mild Vibration Pulse</span>
+              <span><i class="fa-solid fa-clock color-orange"></i> Band (Vibration)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier3-led" checked onchange="saveSensoryPreferences()">
-              <span>ESP32 4-LED Bar</span>
+              <span><i class="fa-solid fa-lightbulb color-yellow"></i> Room Light</span>
             </label>
           </div>
         </div>
@@ -631,15 +632,15 @@
           <div class="tier-toggles">
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier4-strobe" onchange="saveSensoryPreferences()">
-              <span>Fullscreen Strobe Flash</span>
+              <span><i class="fa-solid fa-desktop color-cyan"></i> Web (Screen Flash)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier4-vibe" onchange="saveSensoryPreferences()">
-              <span>Vibration Pulse</span>
+              <span><i class="fa-solid fa-clock color-orange"></i> Band (Vibration)</span>
             </label>
             <label class="toggle-item">
               <input type="checkbox" id="pref-tier4-led" checked onchange="saveSensoryPreferences()">
-              <span>ESP32 4-LED Bar</span>
+              <span><i class="fa-solid fa-lightbulb color-yellow"></i> Room Light</span>
             </label>
           </div>
         </div>
@@ -698,6 +699,161 @@
           <li><code>/sound_events</code>: Historical Sound Feed</li>
           <li><code>/sos_alert</code>: Room Buzzer Trigger (GPIO 18)</li>
         </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- EMERGENCY SERVICES & DIRECT WHATSAPP ASSISTANT MODAL -->
+  <!-- ===================================================================== -->
+  <div id="emergencyCategoryModal" class="modal-overlay hidden" onclick="if(event.target === this) closeEmergencyCategoryModal()">
+    <div class="category-modal-card glass-panel">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <i class="fa-solid fa-triangle-exclamation color-red"></i>
+          <div>
+            <h3>Emergency Assistance (Direct WhatsApp Alert Mode)</h3>
+            <p>Instant emergency distress message with room address sent to contacts & room buzzer</p>
+          </div>
+        </div>
+        <button class="close-modal-btn" onclick="closeEmergencyCategoryModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Resident Address & Location Bar -->
+      <div class="resident-location-bar">
+        <div class="location-info">
+          <i class="fa-solid fa-location-dot color-cyan"></i>
+          <div>
+            <small>Dispatch Address (Included in WhatsApp Alert):</small>
+            <strong id="displayResidentAddress">Hostel Block B, Room 204</strong>
+          </div>
+        </div>
+        <button class="btn-edit-address" onclick="toggleEditAddress()"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+      </div>
+
+      <div id="addressEditBox" class="address-edit-box hidden">
+        <input type="text" id="residentAddressInput" value="Hostel Block B, Room 204" placeholder="Enter your full hostel/apartment address">
+        <button class="btn-save-address" onclick="saveResidentAddress()"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+
+      <p class="modal-instruction">Touch an emergency service below to instantly alert all saved contacts with your exact room location and trigger the ESP32 buzzer:</p>
+
+      <!-- 5 Categories Grid -->
+      <div class="emergency-categories-grid">
+        <!-- 1. POLICE EMERGENCY -->
+        <button class="emergency-cat-card cat-police" onclick="triggerCategoryCall('police')">
+          <div class="cat-icon-wrap"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="cat-details">
+            <div class="cat-title-row">
+              <strong>Police Emergency</strong>
+              <span class="cat-dial-badge"><i class="fa-solid fa-phone"></i> Call 112 / 100</span>
+            </div>
+            <p>Direct phone call to Police Control Room (112) for immediate law enforcement assistance.</p>
+          </div>
+          <i class="fa-solid fa-chevron-right cat-arrow"></i>
+        </button>
+
+        <!-- 2. WOMEN HELPLINE -->
+        <button class="emergency-cat-card cat-women" onclick="triggerCategoryCall('women')">
+          <div class="cat-icon-wrap"><i class="fa-solid fa-person-dress"></i></div>
+          <div class="cat-details">
+            <div class="cat-title-row">
+              <strong>Women Helpline & Safety</strong>
+              <span class="cat-dial-badge"><i class="fa-solid fa-phone"></i> Call 1091 / 181</span>
+            </div>
+            <p>Direct safety distress call to Women Safety Helpline (1091).</p>
+          </div>
+          <i class="fa-solid fa-chevron-right cat-arrow"></i>
+        </button>
+
+        <!-- 3. FIRE BRIGADE -->
+        <button class="emergency-cat-card cat-fire" onclick="triggerCategoryCall('fire')">
+          <div class="cat-icon-wrap"><i class="fa-solid fa-fire-extinguisher"></i></div>
+          <div class="cat-details">
+            <div class="cat-title-row">
+              <strong>Fire Brigade</strong>
+              <span class="cat-dial-badge"><i class="fa-solid fa-phone"></i> Call 101</span>
+            </div>
+            <p>Direct fire emergency call to Fire Station Control (101).</p>
+          </div>
+          <i class="fa-solid fa-chevron-right cat-arrow"></i>
+        </button>
+
+        <!-- 4. MEDICAL AMBULANCE -->
+        <button class="emergency-cat-card cat-ambulance" onclick="triggerCategoryCall('ambulance')">
+          <div class="cat-icon-wrap"><i class="fa-solid fa-truck-medical"></i></div>
+          <div class="cat-details">
+            <div class="cat-title-row">
+              <strong>Ambulance / Medical</strong>
+              <span class="cat-dial-badge"><i class="fa-solid fa-phone"></i> Call 108 / 102</span>
+            </div>
+            <p>Direct ambulance emergency call to Medical Emergency Dispatch (108).</p>
+          </div>
+          <i class="fa-solid fa-chevron-right cat-arrow"></i>
+        </button>
+
+        <!-- 5. NEIGHBOUR / TRUSTED CONTACT -->
+        <button class="emergency-cat-card cat-neighbour" onclick="triggerCategoryCall('neighbour')">
+          <div class="cat-icon-wrap"><i class="fa-solid fa-house-user"></i></div>
+          <div class="cat-details">
+            <div class="cat-title-row">
+              <strong>Neighbour / Trusted Contact</strong>
+              <span class="cat-dial-badge badge-combo" id="neighbourContactDisplayBadge"><i class="fa-brands fa-whatsapp"></i> Direct Msg to Contacts</span>
+            </div>
+            <p>Immediately opens WhatsApp emergency distress alert for sonam & dispatches to saved contacts.</p>
+          </div>
+          <i class="fa-solid fa-chevron-right cat-arrow"></i>
+        </button>
+      </div>
+
+      <div class="modal-footer-note">
+        <i class="fa-solid fa-circle-info"></i> Direct WhatsApp messaging is active. Call integration can be connected in the native mobile app.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- ACTIVE CALL ASSISTANCE HUD MODAL -->
+  <!-- ===================================================================== -->
+  <div id="activeCallHudModal" class="modal-overlay hidden">
+    <div class="active-call-card glass-panel">
+      <div class="active-call-header">
+        <div class="call-pulse-circle">
+          <i class="fa-solid fa-phone-volume"></i>
+        </div>
+        <div>
+          <span class="call-status-tag"><i class="fa-solid fa-phone"></i> OUTBOUND CALL INITIATED</span>
+          <h3 id="activeCallRecipientLabel">Calling Police Emergency (112)</h3>
+          <p id="activeCallSub">Call placed • Resident side is silent (Sound plays for responder)</p>
+        </div>
+      </div>
+
+      <!-- Animated Voice Waveform Visualizer -->
+      <div class="voice-wave-container">
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+        <div class="voice-wave-bar"></div>
+      </div>
+
+      <!-- Spoken Transcript Box -->
+      <div class="spoken-transcript-card">
+        <small><i class="fa-solid fa-headset"></i> Voice Message for Responder Upon Answering:</small>
+        <p id="activeCallSpokenTranscript">
+          "Emergency! This call is from a deaf resident who cannot speak on a voice call. Emergency assistance is urgently required at Hostel Block B, Room 204. Please dispatch immediate assistance!"
+        </p>
+      </div>
+
+      <div class="active-call-actions">
+        <button id="btnTransmitVoice" class="btn-repeat-voice" onclick="transmitVoiceNoteToSpeakerphone()">
+          <i class="fa-solid fa-volume-high"></i> Play Voice into Speakerphone
+        </button>
+        <button class="btn-hangup-call" onclick="endEmergencyCall()">
+          <i class="fa-solid fa-phone-slash"></i> End Call / Close HUD
+        </button>
       </div>
     </div>
   </div>
