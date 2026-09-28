@@ -266,6 +266,7 @@ function handleFirebaseStreamPacket(path, data) {
     if (data.latest_sound_classification) processSoundClassification(data.latest_sound_classification);
     if (data.sos_alert !== undefined) processSosUpdate(data.sos_alert);
     if (data.sound_events) processHistoricalEvents(data.sound_events);
+    if (data.band !== undefined) updateBandStatus(data.band);
   }
   // Telemetry sub-path
   else if (path.startsWith("/live_telemetry")) {
@@ -285,6 +286,10 @@ function handleFirebaseStreamPacket(path, data) {
   else if (path.startsWith("/sound_events")) {
     processHistoricalEvents(data);
   }
+  // Band wearable status sub-path
+  else if (path.startsWith("/band")) {
+    updateBandStatus(data);
+  }
 }
 
 async function pollFirebaseSnapshot() {
@@ -301,11 +306,86 @@ async function pollFirebaseSnapshot() {
       if (data.latest_sound_classification) processSoundClassification(data.latest_sound_classification);
       if (data.sos_alert !== undefined) processSosUpdate(data.sos_alert);
       if (data.sound_events) processHistoricalEvents(data.sound_events);
+      if (data.band !== undefined) updateBandStatus(data.band);
     }
   } catch (err) {
     updateFirebaseStatus(false, "Sync Offline");
   }
 }
+
+// -----------------------------------------------------------------------------
+// BAND STATUS UPDATER — reads Firebase /band { worn: bool, battery: int }
+// -----------------------------------------------------------------------------
+function updateBandStatus(bandData) {
+  const badge     = document.getElementById('bandStatusBadge');
+  const icon      = document.getElementById('bandStatusIcon');
+  const stateText = document.getElementById('bandStateText');
+  const battWrap  = document.getElementById('bandBatteryWrap');
+  const battText  = document.getElementById('bandBatteryText');
+  const battBar   = document.getElementById('bandBatteryBar');
+  const battIcon  = document.getElementById('bandBatteryIcon');
+  const lastUpd   = document.getElementById('bandLastUpdate');
+  const iconWrap  = document.getElementById('bandIconWrap');
+
+  if (!badge) return;
+
+  // Handle null / missing band data
+  if (!bandData || typeof bandData !== 'object') {
+    badge.className = 'band-status-badge checking';
+    badge.innerHTML = '<i class="fa-solid fa-circle-question"></i> No Data';
+    stateText.textContent = 'Band not connected to Firebase yet';
+    icon.className = 'fa-solid fa-circle-question band-icon-unknown';
+    iconWrap.className = 'band-icon-wrap unknown';
+    battWrap.classList.add('hidden');
+    lastUpd.textContent = 'Ask hardware friend to push /band data to Firebase';
+    return;
+  }
+
+  const worn    = bandData.worn === true || bandData.worn === 'true';
+  const battery = parseInt(bandData.battery ?? -1, 10);
+  const now     = new Date().toLocaleTimeString();
+
+  if (worn) {
+    // ✅ WORN
+    badge.className = 'band-status-badge worn';
+    badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Band Worn';
+    stateText.textContent = 'Band is being worn by resident ✅';
+    icon.className = 'fa-solid fa-hand-fist band-icon-worn';
+    iconWrap.className = 'band-icon-wrap worn';
+  } else {
+    // ❌ NOT WORN
+    badge.className = 'band-status-badge not-worn';
+    badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Not Worn';
+    stateText.textContent = 'Band is NOT worn ❌ — alerts may not reach resident!';
+    icon.className = 'fa-solid fa-hand-fist band-icon-not-worn';
+    iconWrap.className = 'band-icon-wrap not-worn';
+  }
+
+  // Battery section
+  if (battery >= 0) {
+    battWrap.classList.remove('hidden');
+    battText.textContent = `Battery: ${battery}%`;
+    battBar.style.width = `${Math.min(battery, 100)}%`;
+
+    // Color the bar by level
+    if (battery > 60) {
+      battBar.style.background = 'linear-gradient(90deg, #00e676, #69f0ae)';
+      battIcon.className = 'fa-solid fa-battery-full';
+    } else if (battery > 30) {
+      battBar.style.background = 'linear-gradient(90deg, #ffca28, #ffe57f)';
+      battIcon.className = 'fa-solid fa-battery-half';
+    } else {
+      battBar.style.background = 'linear-gradient(90deg, #ef5350, #ff8a80)';
+      battIcon.className = 'fa-solid fa-battery-quarter';
+    }
+  } else {
+    battWrap.classList.add('hidden');
+  }
+
+  lastUpd.textContent = `Last updated: ${now}`;
+}
+
+
 
 
 // -----------------------------------------------------------------------------

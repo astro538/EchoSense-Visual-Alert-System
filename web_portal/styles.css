@@ -2634,3 +2634,126 @@ body {
   background: #b91c1c;
   box-shadow: 0 0 20px rgba(220, 38, 38, 0.6);
 }
+
+/* ============================================================
+   BAND STATUS CARD
+   ============================================================ */
+.band-status-panel {
+  padding: 14px 16px;
+  margin-top: 0;
+}
+
+.band-status-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.band-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  transition: all 0.4s ease;
+}
+
+.band-icon-wrap.worn {
+  background: rgba(0, 230, 118, 0.15);
+  border: 2px solid #00e676;
+  box-shadow: 0 0 16px rgba(0, 230, 118, 0.3);
+}
+
+.band-icon-wrap.not-worn {
+  background: rgba(239, 83, 80, 0.15);
+  border: 2px solid #ef5350;
+  box-shadow: 0 0 16px rgba(239, 83, 80, 0.3);
+}
+
+.band-icon-wrap.unknown {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255,255,255,0.15);
+}
+
+.band-icon-worn  { color: #00e676; }
+.band-icon-not-worn { color: #ef5350; }
+.band-icon-unknown  { color: rgba(255,255,255,0.4); }
+
+.band-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.band-state-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 6px;
+}
+
+.band-battery-wrap {
+  margin-bottom: 4px;
+}
+
+.band-battery-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 4px;
+}
+
+.battery-bar-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.battery-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #00e676, #69f0ae);
+  transition: width 0.5s ease, background 0.5s ease;
+}
+
+.band-last-update {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.35);
+  margin-top: 4px;
+}
+
+/* Band status badge */
+.band-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.band-status-badge.worn {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00e676;
+  border: 1px solid rgba(0, 230, 118, 0.4);
+}
+
+.band-status-badge.not-worn {
+  background: rgba(239, 83, 80, 0.15);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.4);
+}
+
+.band-status-badge.checking {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+}

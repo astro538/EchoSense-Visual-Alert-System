@@ -369,6 +369,34 @@
               </div>
             </div>
 
+            <!-- BAND STATUS CARD (Auto-updated from Firebase /band) -->
+            <div class="glass-panel band-status-panel" id="bandStatusPanel">
+              <div class="card-header-compact">
+                <h3><i class="fa-solid fa-hand-fist"></i> Band (Wearable)</h3>
+                <span class="band-status-badge checking" id="bandStatusBadge">
+                  <i class="fa-solid fa-circle-question"></i> Checking...
+                </span>
+              </div>
+              <div class="band-status-body">
+                <div class="band-icon-wrap" id="bandIconWrap">
+                  <i class="fa-solid fa-circle-question band-icon-unknown" id="bandStatusIcon"></i>
+                </div>
+                <div class="band-info">
+                  <div class="band-state-text" id="bandStateText">Connecting to Firebase...</div>
+                  <div class="band-battery-wrap hidden" id="bandBatteryWrap">
+                    <div class="band-battery-row">
+                      <i class="fa-solid fa-battery-three-quarters" id="bandBatteryIcon"></i>
+                      <span id="bandBatteryText">Battery: --%</span>
+                    </div>
+                    <div class="battery-bar-track">
+                      <div class="battery-bar-fill" id="bandBatteryBar" style="width: 0%"></div>
+                    </div>
+                  </div>
+                  <div class="band-last-update" id="bandLastUpdate">No band data received yet</div>
+                </div>
+              </div>
+            </div>
+
           </section>
 
         </div>
