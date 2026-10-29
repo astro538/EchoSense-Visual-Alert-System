@@ -1,184 +1,187 @@
-# AuraSound IoT: Assistive Environmental Sound Intelligence & Alert System
-### An IoT & Machine Learning Acoustic Awareness System for Deaf & Hard of Hearing Individuals
+# EchoSense — Visual Alert System for Deaf and Hard-of-Hearing Users
 
----
+EchoSense is an assistive-technology prototype that combines acoustic monitoring, visual cues, an ESP32 device, and a web dashboard. Its goal is to help users notice important sounds in an indoor environment without depending on hearing alone.
 
-## 1. Executive Summary & Problem Statement
+**Project status:** research/prototype work. The system has not been validated as a certified smoke alarm, emergency-response device, or safety-critical detector.
 
-Individuals who are deaf or hard of hearing face significant accessibility barriers in indoor and domestic environments. Critical everyday sounds—such as someone shouting or calling their name, glass breaking or falling, a baby crying, door knocking, smoke alarms, or a pet alerting—cannot be perceived through auditory channels. 
+## Problem and approach
 
-**AuraSound IoT** bridges this sensory gap by transforming room acoustic vibrations into instant, accessible visual intelligence. The system employs:
-1. An **ESP32 microcontroller** paired with an **INMP441 high-precision I2S digital MEMS microphone** that continuously samples room sound pressure levels with zero analog noise.
-2. A **4-LED sound level visual bar** (`L1`, `L2`, `L3`, `L4`) providing immediate local visual indication of ambient sound intensity.
-3. A **Python AI / Acoustic Digital Signal Processing (DSP) Engine** capable of recognizing distinct acoustic events (e.g., Dog Barking, Glass Cracking, Baby Crying, Door Knocks, High Voice/Shouting, and Fire Alarms).
-4. A **Google Firebase Realtime Database** cloud synchronization pipeline.
-5. An **Assistive Web Portal** featuring full-screen visual strobe flashes, live decibel VU meters, event history logs, and a bidirectional **Emergency SOS Buzzer trigger** that activates the physical room buzzer on demand.
+Everyday sounds such as knocking, barking, alarms, and raised voices may be difficult to notice for people who are deaf or hard of hearing. EchoSense explores how microphone input can be translated into visible notifications and a user-controlled emergency workflow.
 
----
+The system is split into cooperating components:
 
-## 2. System Architecture
+- **ESP32 firmware:** reads an INMP441 I2S microphone, calculates a smoothed sound-level estimate, drives a four-LED level bar, and checks Firebase for a manual SOS/buzzer command.
+- **Python backend:** performs audio analysis/classification and publishes event information for the dashboard. The repository includes both `sound_classifier.py` and a separate `visual.py`/YAMNet integration path; check which entry point is used in a particular demo.
+- **Firebase Realtime Database:** synchronizes telemetry, latest classification, event history, configuration, and the SOS state.
+- **Web portal:** displays sound/event information, visual warnings, event history, sound-level readings, and the manual SOS workflow.
 
-```
-                       +-----------------------------------+
-                       |    ROOM ACOUSTIC ENVIRONMENT      |
-                       +-----------------------------------+
-                                         |
-                                         v
-                         +-------------------------------+
-                         |   INMP441 I2S Digital Mic     |
-                         |   (24-bit PCM via I2S DMA)    |
-                         +-------------------------------+
-                                         |
-                                         v
-+---------------------------------------------------------------------------------+
-|                               ESP32 MICROCONTROLLER                             |
-|                                                                                 |
-|  [I2S Audio Capture] ---> [RMS & Decibel DSP] ---> [4-LED VU Meter Driver]      |
-|                                    |                        |                   |
-|                                    v                        v                   |
-|                          [WiFi HTTP Client]             [L1, L2, L3, L4]        |
-|                                    |                                            |
-|                                    |<------------------ [Buzzer Driver (GPIO18)]|
-+---------------------------------------------------------------------------------+
-                                     |                           ^
-                                     v                           |
-                    +----------------------------------+         |
-                    |  GOOGLE FIREBASE REALTIME DB     |         |
-                    |  - /live_telemetry               |         |
-                    |  - /latest_sound_classification  |         |
-                    |  - /sound_events                 |         |
-                    |  - /sos_alert -----------------------------+
-                    +----------------------------------+
-                             ^                     ^
-                             |                     |
-                             v                     v
-     +-------------------------------+   +------------------------------------+
-     |   PYTHON SOUND CLASSIFIER     |   |       ASSISTIVE WEB PORTAL         |
-     |   - FFT & Spectral Centroid   |   |   - Fullscreen Strobe Visual Alert |
-     |   - Zero Crossing Rate & ZCR  |   |   - Real-time Decibel Gauge        |
-     |   - Pattern Classifier:       |   |   - Virtual 4-LED Status Bar       |
-     |     * Glass Crack 💥          |   |   - Emergency SOS Buzzer Trigger   |
-     |     * Dog Bark 🐕             |   |   - Sound Event History Log        |
-     |     * Baby Cry 👶             |   |   - Haptic Vibration Notification  |
-     |     * High Voice 🗣️           |   +------------------------------------+
-     |     * Siren Alarm 🚨          |
-     +-------------------------------+
+## Architecture
+
+```text
+Room sound
+   |
+   +--> INMP441 --> ESP32 --> RMS / sound-level estimate --> 4-LED bar
+   |                   |
+   |                   +--> Wi-Fi --> Firebase Realtime Database
+   |
+   +--> Computer microphone --> Python audio analysis/classifier
+                                  |
+                                  +--> event updates --> Firebase
+                                                          |
+                                                          v
+                                                  Web dashboard
+                                             visual alerts + event log
+                                             manual SOS --> buzzer state
 ```
 
----
+The ESP32's sound-level thresholds are heuristic estimates. Calibrated dB SPL measurement requires calibration against a known reference meter and suitable microphone response correction.
 
-## 3. Hardware Bill of Materials & Pinout
+## Hardware
 
-| Component | Model / Spec | Interface | ESP32 Pin Connection | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **Microcontroller** | ESP32 DevKit V1 (30/38 pin) | USB / 3.3V Logic | - | Core processing & WiFi gateway |
-| **Digital Microphone** | INMP441 Omnidirectional MEMS | I2S Digital | VDD -> `3V3`<br>GND -> `GND`<br>SD -> `GPIO 32`<br>WS -> `GPIO 25`<br>SCK -> `GPIO 33`<br>L/R -> `GND` | Captures high-definition 24-bit audio without analog interference |
-| **Buzzer Module** | 3-Pin Module (Active / Passive) | Digital I/O | VCC -> `3V3`<br>GND -> `GND`<br>I/O -> `GPIO 18` | Audible room alert triggered via Emergency SOS from web |
-| **4-LED Sound Bar** | 4-LED Bar (Green, Yellow, Orange, Red) | Digital GPIO | L1 -> `GPIO 12`<br>L2 -> `GPIO 14`<br>L3 -> `GPIO 27`<br>L4 -> `GPIO 26`<br>Cathode -> `GND` | Hardware visual level meter (low, moderate, high voice, peak) |
+- ESP32 DevKit V1
+- INMP441 I2S digital microphone
+- Four discrete LEDs for sound-level indication
+- Buzzer module for a manually triggered SOS alert
+- Computer with microphone for the Python classification path
+- Wi-Fi network and a Firebase Realtime Database project
 
-> Complete ASCII schematics and wiring safety rules are documented in [`connections.txt`](connections.txt).
+### Current firmware pin map
 
----
+| Component | ESP32 pin |
+| --- | --- |
+| INMP441 SD | GPIO 32 |
+| INMP441 WS / LRCK | GPIO 25 |
+| INMP441 SCK / BCLK | GPIO 33 |
+| Buzzer signal | GPIO 18 |
+| LED level 1 | GPIO 12 |
+| LED level 2 | GPIO 14 |
+| LED level 3 | GPIO 27 |
+| LED level 4 | GPIO 26 |
+| On-board LED | GPIO 2 |
 
-## 4. Software Modules Overview
+For full wiring details, see [`connections.txt`](connections.txt).
 
-### 4.1 ESP32 Firmware (`firmware/esp32_firmware/esp32_firmware.ino`)
-- **I2S DMA Audio Pipeline**: Direct memory access ring buffer sampling audio at 16,000 Hz in 24-bit precision.
-- **RMS Sound Decibel Conversion**: Calculates calibrated decibel Sound Pressure Level (dB SPL) with exponential smoothing filters.
-- **4-Level LED Thresholding**:
-  - `L1 (GPIO 12)`: Active at $\ge 45\text{ dB}$ (Low ambient conversation).
-  - `L2 (GPIO 14)`: Active at $\ge 58\text{ dB}$ (Normal room talk).
-  - `L3 (GPIO 27)`: Active at $\ge 70\text{ dB}$ (High voice / loud sound).
-  - `L4 (GPIO 26)`: Active at $\ge 82\text{ dB}$ (Critical peak / shattering / screams).
-- **Firebase Synchronization**: Pushes live decibels and sound alerts to Firebase Realtime Database over WiFi HTTPS REST.
-- **Bidirectional SOS Buzzer**: Polls `/sos_alert` and activates a distinct cadence on `GPIO 18` when triggered from the web portal.
+## Repository layout
 
-### 4.2 Python AI Sound Classifier (`python_backend/sound_classifier.py`)
-- **Acoustic Feature Extraction**:
-  - *Spectral Centroid*: Frequency brightness distinguishing glass shattering (>3.5 kHz) from voices and barking.
-  - *Zero Crossing Rate (ZCR)* & *Crest Factor*: Distinguishes explosive transients from continuous tones.
-  - *Harmonic Pitch Estimation*: Identifies infant distress frequencies (450–600 Hz) and siren sweeps.
-- **Target Sound Classifications**:
-  - 💥 **Glass Cracking / Breaking**: High-frequency acoustic transient and rapid decay.
-  - 🐕 **Dog Barking**: Periodic mid-frequency envelope bursts.
-  - 👶 **Baby Crying**: Modulated high-pitch vocal harmonic pattern.
-  - 🚪 **Door Knock**: Low-frequency resonant impact pulses (<500 Hz).
-  - 🗣️ **High Voice / Shouting**: High vocal band energy (1 kHz–3 kHz).
-  - 🚨 **Siren / Fire Alarm**: Continuous tonal emergency sweep.
-- **Dual Operating Modes**:
-  - `Live Microphone Mode`: Captures PC mic input in real time.
-  - `Simulation Mode`: Generates synthetic waveforms with interactive terminal keys (`1`–`6`, `A`) for quick testing without hardware.
-
-### 4.3 Assistive Web Portal (`web_portal/`)
-- **Accessible Design for Deaf & Hard of Hearing**:
-  - **Fullscreen Visual Strobe Alert**: Replaces audible cues with flashing visual warnings for urgent events.
-  - **Haptic Vibration**: Uses the browser Vibration API to buzz smartphones on critical events.
-  - **Sound Decibel Gauge**: Circular progress arc showing current room decibel levels.
-  - **Virtual 4-LED Display**: Matches physical ESP32 `L1`–`L4` state in real-time.
-  - **Emergency SOS Controller**: One-click button to trigger the room's physical ESP32 buzzer.
-  - **Simulation & Demo Mode**: Built-in sound demo chips allowing instant presentation even without active hardware.
-  - **Firebase Configuration Drawer**: Allows plugging in custom Firebase project URLs in seconds.
-
----
-
-## 5. Directory Structure
-
-```
-Intellectual/
-├── connections.txt                     # Detailed pin-to-pin wiring guide & ASCII schematic
-├── firebase_setup_guide.md             # Firebase Realtime Database setup instructions
-├── README.md                           # Comprehensive engineering project report
-├── firmware/
-│   └── esp32_firmware/
-│       └── esp32_firmware.ino          # ESP32 C++ Arduino firmware (I2S, LEDs, Buzzer, Firebase)
+```text
+EchoSense-Visual-Alert-System/
+├── firmware/esp32_firmware/esp32_firmware.ino
 ├── python_backend/
-│   ├── sound_classifier.py            # AI audio DSP & classification engine
-│   └── requirements.txt               # Python dependencies (numpy, scipy, sounddevice)
-└── web_portal/
-    ├── index.html                      # Accessible assistive HTML dashboard
-    ├── styles.css                      # Ultra-premium dark glassmorphism styling & strobe animations
-    └── app.js                          # Real-time Firebase sync, VU meter, and SOS controller
+│   ├── sound_classifier.py
+│   ├── visual.py
+│   ├── automated_emergency_call.py
+│   └── requirements.txt
+├── web_portal/
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+├── connections.txt
+├── firebase_setup_guide.md
+├── start_python_classifier.bat
+└── start_web_portal.bat
 ```
 
----
+The repository also contains a nested `EchoSense-Visual-Alert-System/` directory with a copy of several project files. The paths above refer to the repository-root copy.
 
-## 6. Quick Start & Execution
+## Software requirements
 
-### Step 1: Open the Web Portal
-Double-click [`web_portal/index.html`](web_portal/index.html) or run a local server:
+- Python 3.10+ (use a version compatible with the dependencies in `python_backend/requirements.txt`)
+- Arduino IDE with ESP32 board support
+- Firebase Realtime Database
+- A modern browser
+- Python dependencies from `python_backend/requirements.txt`
+
+## Setup
+
+### 1. Configure Firebase securely
+
+1. Create a Firebase project and Realtime Database.
+2. Follow [`firebase_setup_guide.md`](firebase_setup_guide.md) to identify the database nodes and configure the portal.
+3. Use authentication and least-privilege database rules. **Do not use public read/write rules in a deployed system.**
+4. Keep database credentials and authentication tokens outside tracked source code.
+
+**Credential warning:** previously committed versions of the source include Wi-Fi credentials and a Firebase authentication value. Rotate/revoke exposed credentials immediately. Removing a value from the latest file does not remove it from Git history; rotate first, then clean the source and review repository history. Never copy real secrets into this README or a public commit.
+
+### 2. Run the web portal
+
+From the repository root:
+
 ```bash
 cd web_portal
 python -m http.server 8080
 ```
-Open `http://localhost:8080` in your web browser. You can immediately test all features using the **Demo Sim** chips (Dog Barking, Glass Crack, Baby Cry, High Voice, Siren) and test the **Emergency SOS** button.
 
-### Step 2: Run the Python Sound Classifier
+Open [http://localhost:8080](http://localhost:8080). The portal contains demo/simulation controls; connecting live telemetry requires valid Firebase configuration. Depending on browser security restrictions, serve the page over HTTP rather than opening the file directly.
+
+### 3. Run the Python classifier
+
 ```bash
 cd python_backend
-pip install -r requirements.txt
-python sound_classifier.py --mode sim
+python -m venv .venv
 ```
-Press keys `1` through `6` to simulate different sound profiles, or run with `--mode live` to classify live sounds from your microphone.
 
-### Step 3: Flash the ESP32 Hardware
-1. Connect the ESP32, INMP441, Buzzer, and 4-LEDs according to [`connections.txt`](connections.txt).
-2. Open `firmware/esp32_firmware/esp32_firmware.ino` in Arduino IDE.
-3. In the Library Manager, install **ArduinoJson** and **ESP32 Board package**.
-4. Set your WiFi credentials and your Firebase database URL.
-5. Select board **"ESP32 Dev Module"** and upload.
+Activate the environment, then install the listed dependencies:
 
----
+**Windows PowerShell**
+```powershell
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python sound_classifier.py --help
+```
 
-## 7. Verification & Testing
+**macOS / Linux**
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+python sound_classifier.py --help
+```
 
-- **INMP441 Audio Capture**: Verified I2S DMA initialization on GPIO 32/25/33.
-- **LED Meter Mapping**: Verified monotonic activation of L1 (45 dB), L2 (58 dB), L3 (70 dB), and L4 (82 dB).
-- **Acoustic Classifier**: Successfully verified spectral centroid and energy features against synthetic waveforms for cracks, barks, knocks, cries, and shouts.
-- **SOS Buzzer Control**: Bidirectional synchronization between web portal button and ESP32 hardware verified via `/sos_alert` node.
-- **Accessibility UI**: Verified high-contrast visual strobe flash on critical sound detection.
+Check the script's supported command-line arguments before selecting live microphone or simulation mode. The separate `visual.py` path uses YAMNet through TensorFlow Hub and has its own integration settings. Do not assume the two Python files use the same inference pipeline.
 
----
+### 4. Flash the ESP32
 
-## 8. License & Acknowledgements
-Developed with Google DeepMind Antigravity for assistive IoT accessibility.
-Open-source under the MIT License.
+1. Open `firmware/esp32_firmware/esp32_firmware.ino` in Arduino IDE.
+2. Install ESP32 board support.
+3. Add Wi-Fi and Firebase configuration locally, without committing secrets.
+4. Verify the pin mapping against `connections.txt`.
+5. Select the correct board and port, upload the sketch, and inspect Serial Monitor at 115200 baud.
+6. Confirm microphone readings, LED level changes, Firebase connectivity, and manual SOS/buzzer operation separately.
+
+The checked-in firmware polls the Firebase `/sos_alert` node to drive the buzzer. If the physical SOS switch is part of the prototype build, ensure its GPIO input and event/message path are present in the exact firmware version being demonstrated.
+
+## Accessibility interaction
+
+The intended feedback path emphasizes visual indication: LED levels on the device, visual event notifications in the portal, and a separate manual SOS workflow. The system should not depend on an automatic high-decibel trigger to dispatch emergency messages. Browser-vibration code may exist in the current front-end source, but haptic feedback is not a core output described for this prototype.
+
+## Testing and evaluation
+
+Test the components independently before an integrated demonstration:
+
+- Verify I2S microphone input and repeatability of sound-level readings.
+- Test the LED thresholds with a reference sound meter where possible.
+- Evaluate the classifier on labelled recordings separate from any examples used during development.
+- Record per-class precision, recall, F1, false-trigger rate, and end-to-end latency.
+- Verify the manual SOS path, connectivity failure behaviour, and buzzer auto-timeout.
+- Test the interface with people from the intended user group only with informed consent and appropriate supervision.
+
+The repository does not currently provide a reproducible, independent benchmark for sound-event accuracy. Do not treat hand-set thresholds or model confidence as proof of reliable emergency detection.
+
+## Known limitations
+
+- The project contains multiple generations of the Python classification/integration code; align the selected entry point and endpoint configuration before a demo.
+- A local web server, Python process, Wi-Fi connection, and Firebase configuration may all be required for full integration.
+- Browser visual effects do not guarantee that a notification will be noticed.
+- A decibel estimate without acoustic calibration is not a certified SPL measurement.
+- This prototype must not replace certified smoke/fire alarms, emergency communication systems, or accessibility accommodations.
+
+## Future work
+
+- Centralize configuration in environment variables and example configuration files.
+- Remove duplicate project copies and add automated setup checks.
+- Add labelled, participant-consented evaluation data and reproducible test scripts.
+- Add device/API authentication, secure Firebase rules, and clearer offline behaviour.
+- Document the physical SOS input and its message dispatch path alongside the wiring guide.
+
+## License and attribution
+
+Review third-party library and asset licenses before redistribution. Add an explicit project license if you intend to publish the code for reuse.
