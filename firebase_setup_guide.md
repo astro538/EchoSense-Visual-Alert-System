@@ -20,9 +20,7 @@ This guide provides step-by-step instructions to configure **Firebase Realtime D
 1. In the left navigation menu of the Firebase Console, go to **Build** > **Realtime Database**.
 2. Click the **"Create Database"** button.
 3. Choose a database location closest to your location (e.g., `United States (us-central1)`, `Singapore (asia-southeast1)`, or `Belgium (europe-west1)`).
-4. For security rules, select **"Start in test mode"**.
-   > [!NOTE]
-   > Test mode allows immediate read/write access so your ESP32 and web app can communicate without needing complex OAuth tokens during development.
+4. Prefer **production mode** and configure rules that require authentication. If you temporarily use test mode to get a local prototype running, treat the database as publicly exposed until the rules are changed. Do not leave public/test rules enabled for a demo on an internet-accessible database.
 
 ---
 
@@ -33,26 +31,35 @@ Navigate to the **"Rules"** tab inside Realtime Database and paste the following
 ```json
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "live_telemetry": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "latest_sound_classification": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "sound_events": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "sos_alert": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "config": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
   }
 }
 ```
 
 Click **"Publish"**.
 
-> [!TIP]
-> **For Production Deployment**: Once testing is complete, you can secure the rules with an authentication secret or user login:
-> ```json
-> {
->   "rules": {
->     "live_telemetry": { ".read": true, ".write": "auth != null" },
->     "latest_sound_classification": { ".read": true, ".write": "auth != null" },
->     "sound_events": { ".read": true, ".write": "auth != null" },
->     "sos_alert": { ".read": true, ".write": true }
->   }
-> }
-> ```
+> **Important:** the rules above are only a baseline requiring a signed-in Firebase user. For production, use least-privilege rules that restrict reads and writes by user/device identity and separate administrator permissions from ordinary devices. The ESP32 firmware and Python scripts currently contain hard-coded database authentication values; rotate/revoke any value already committed to Git, then redesign configuration so privileged credentials are not embedded in publicly distributed firmware or source. Do not assume hiding a token in a client app makes it secure.
 
 ---
 
